@@ -1,18 +1,75 @@
 package com.example;
 
-public class Main {
-    
-    public static void main(String[] args) {
-        /*FicScraper work = new FicScraper("https://www.royalroad.com/home", null);
-        Elements wrapper = work.connectToSite();
-        work.searchForTitle(wrapper);
-        */
-        Fiction fic = new Fiction("Potato", "It is about a potato");
-        Fiction bruh = new Fiction("bob", "The builder");
-        JsonSerializer serializer = new JsonSerializer();
+import java.util.Scanner;
 
-        serializer.saveFicToJson(fic);
-        serializer.saveFicToJson(bruh);
+public class Main {
+    private static Scanner userInputScanner = new Scanner(System.in);
+    final static String MENU_ITEM_Q = "-1";
+
+    public static void main(String[] args) {
+        boolean notQ = true;
+        
+        //Currently only works with Royal Road
+        while (notQ) {
+            try {
+                int menuNav = Integer.parseInt(menu());
+                switch (menuNav) {
+                    case 1:
+                        System.out.println("Put in link to new fic: ");
+                        String newLinkToFic = input();
+                        //TODO parse through input to check link format
+
+                        FicScraper ficScraper = new FicScraper(newLinkToFic);
+                        Fiction newFic = ficScraper.ficInformation();
+                        
+                        JsonSerializer serializer = new JsonSerializer();
+                        serializer.saveFicToJson(newFic);
+                        
+                        System.out.println("Fix added to JSON file: " + newFic);
+                        break;
+                    case 2:
+                        JsonDeserializer jsonDeserializer = new JsonDeserializer();
+                        jsonDeserializer.readJsonFile();
+                        break;
+                    case -1:
+                        notQ = false;
+                        break;
+                }
+                
+            } catch (NumberFormatException e) {
+                System.out.println("Input was not an integer or q, try again.");
+                e.printStackTrace();
+            }
+
+        }
+        
+    }
+
+    public static String input() {
+        String inputValue;
+        while (true) {
+            String input = userInputScanner.next();
+            userInputScanner.nextLine();
+            if (input.equals("q")) {
+                inputValue = MENU_ITEM_Q;
+                break;
+            } 
+            inputValue = input;
+            break;
+        }     
+        return inputValue;
+    }
+
+
+    public static String menu() {
+        System.out.println("""
+                1. New link to fic
+                2. Choose existing fic
+                3. New updates from fics
+                q. Quit 
+                """);
+        
+        return input();
     }
     
 }
