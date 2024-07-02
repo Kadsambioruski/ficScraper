@@ -6,10 +6,13 @@ public class Main {
     private static Scanner userInputScanner = new Scanner(System.in);
     final static String MENU_ITEM_Q = "-1";
 
+
     public static void main(String[] args) {
         boolean notQ = true;
-        
-        //Currently only works with Royal Road
+        JsonDeserializer jsonDeserializer = new JsonDeserializer();
+
+        //TODO use cookie saving for cloudflare
+        // Currently only works with Royal Road
         while (notQ) {
             try {
                 int menuNav = Integer.parseInt(menu());
@@ -18,18 +21,26 @@ public class Main {
                         System.out.println("Put in link to new fic: ");
                         String newLinkToFic = input();
                         //TODO parse through input to check link format
-
                         FicScraper ficScraper = new FicScraper(newLinkToFic);
                         Fiction newFic = ficScraper.ficInformation();
                         
                         JsonSerializer serializer = new JsonSerializer();
                         serializer.saveFicToJson(newFic);
                         
-                        System.out.println("Fix added to JSON file: " + newFic);
+                        System.out.println("Fic added to JSON file: " + newFic);
                         break;
                     case 2:
-                        JsonDeserializer jsonDeserializer = new JsonDeserializer();
                         jsonDeserializer.readJsonFile();
+                        break;
+                    case 3:
+                        System.out.println("Choose fic from list through fic Number");
+                        String ficNumberString = input();
+                        int parsedFicNumber = Integer.parseInt(ficNumberString);
+
+                        FicScraper ficScraper2 = new FicScraper(jsonDeserializer.getFicLink(parsedFicNumber));
+
+                        System.out.println(jsonDeserializer.getChapAmountInJSON(parsedFicNumber));
+                        System.out.println(ficScraper2.checkUpdatedChap(parsedFicNumber));
                         break;
                     case -1:
                         notQ = false;
@@ -64,7 +75,7 @@ public class Main {
     public static String menu() {
         System.out.println("""
                 1. New link to fic
-                2. Choose existing fic
+                2. See all fictions
                 3. New updates from fics
                 q. Quit 
                 """);
