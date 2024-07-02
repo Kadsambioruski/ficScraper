@@ -18,7 +18,7 @@ public class JsonDeserializer {
         int i = 1;
         String filePath = "scraper/src/main/java/com/example/fics.json";
         try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
-            InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){
+            InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
         
             JsonNode rootNode = objectMapper.readTree(inputStreamReader);
            
@@ -45,6 +45,62 @@ public class JsonDeserializer {
         } catch (IOException e) {
             e.printStackTrace();        
         }
+    }
+
+    public String getChapAmountInJSON(int ficNumber) {
+        String returnStatement = "";
+        String filePath = "scraper/src/main/java/com/example/fics.json";
+
+        try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
+            InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
+        
+            JsonNode rootNode = objectMapper.readTree(inputStreamReader);
+           
+            JsonNode fictionsArray = rootNode.path("fictions");
+                if (fictionsArray.isArray()) {
+                    for (JsonNode fictionNode : fictionsArray) {
+                        if (fictionNode.path("ficID").asInt() == ficNumber) {
+                            String chapAmount = fictionNode.path("chapAmount").asText().split(" ")[0];
+                            returnStatement = String.format(chapAmount); 
+                        }
+                    }
+                } else {
+                    returnStatement = String.format("ChapAmount not found.");
+                    return returnStatement;
+                }
+
+        } catch (IOException e) {
+            e.printStackTrace();        
+        }
+        return returnStatement; 
+    }
+
+    public String getFicLink(int ficNumber) {
+        String returnStatement = "";
+        String filePath = "scraper/src/main/java/com/example/fics.json";
+
+        try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
+            InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
+        
+            JsonNode rootNode = objectMapper.readTree(inputStreamReader);
+           
+            JsonNode fictionsArray = rootNode.path("fictions");
+                if (fictionsArray.isArray()) {
+                    for (JsonNode fictionNode : fictionsArray) {
+                        if (fictionNode.path("ficID").asInt() == ficNumber) {
+                            returnStatement = fictionNode.path("ficLink").asText(); 
+                            System.out.println("This is the link: " + returnStatement);
+                        }
+                    }
+                } else {
+                    returnStatement = String.format("ficLink not found.");
+                    return returnStatement;
+                }
+
+        } catch (IOException e) {
+            e.printStackTrace();        
+        }
+        return returnStatement; 
     }
 
 }
