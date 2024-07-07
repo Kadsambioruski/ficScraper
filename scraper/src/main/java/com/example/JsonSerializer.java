@@ -12,7 +12,7 @@ public class JsonSerializer {
     public JsonSerializer(){}
     
     
-    public void saveFicToJson(Fiction fiction) {
+    public void saveFicToJson(Fiction fiction) { 
         String filePath = "scraper/src/main/java/com/example/fics.json";
         
         try {
@@ -39,6 +39,7 @@ public class JsonSerializer {
 
             System.out.println("New data appended and saved to file: " + filePath);
         } catch (Exception e) {
+            //TODO could add runtimeexception to break process if something happens during serialization
             e.printStackTrace();
         }
 
