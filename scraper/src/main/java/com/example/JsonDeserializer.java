@@ -103,4 +103,32 @@ public class JsonDeserializer {
         return returnStatement; 
     }
 
+    public String getFicTitle(int ficNumber) {
+        String returnStatement = "";
+        String filePath = "scraper/src/main/java/com/example/fics.json";
+
+        try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
+            InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
+        
+            JsonNode rootNode = objectMapper.readTree(inputStreamReader);
+           
+            JsonNode fictionsArray = rootNode.path("fictions");
+                if (fictionsArray.isArray()) {
+                    for (JsonNode fictionNode : fictionsArray) {
+                        if (fictionNode.path("ficID").asInt() == ficNumber) {
+                            returnStatement = fictionNode.path("title").asText(); 
+                            System.out.println("This is the title: " + returnStatement);
+                        }
+                    }
+                } else {
+                    returnStatement = String.format("title not found.");
+                    return returnStatement;
+                }
+
+        } catch (IOException e) {
+            e.printStackTrace();        
+        }
+        return returnStatement; 
+    }
+
 }
