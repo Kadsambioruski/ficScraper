@@ -17,6 +17,7 @@ public class FicScraper {
     private String urlOfFic;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    public FicScraper(){}
 
     public FicScraper(String urlOfFic) {
         this.urlOfFic = urlOfFic;
@@ -112,7 +113,7 @@ public class FicScraper {
     public String checkUpdatedChap(int ficID){
         JsonDeserializer jsonDeserializer = new JsonDeserializer();
         if (Integer.parseInt(jsonDeserializer.getChapAmountInJSON(ficID)) < Integer.parseInt(searchForChap())) {
-            return String.format("New chapter found!");
+            return String.format("New chapter found! Latest chapter in " + jsonDeserializer.getFicTitle(ficID) + " is: " + Integer.parseInt(searchForChap()));
         } else {
             return String.format("No new chapter for this fic.");
         }
