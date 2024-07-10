@@ -110,13 +110,13 @@ public class FicScraper {
         }
     }
 
-    public String checkUpdatedChap(int ficID){
+    public boolean checkUpdatedChap(int ficID){
+        boolean chapFound = false;
         JsonDeserializer jsonDeserializer = new JsonDeserializer();
         if (Integer.parseInt(jsonDeserializer.getChapAmountInJSON(ficID)) < Integer.parseInt(searchForChap())) {
-            return String.format("New chapter found! Latest chapter in " + jsonDeserializer.getFicTitle(ficID) + " is: " + Integer.parseInt(searchForChap()));
-        } else {
-            return String.format("No new chapter for this fic.");
+            chapFound = true; 
         }
+        return chapFound;
     }
 
 
