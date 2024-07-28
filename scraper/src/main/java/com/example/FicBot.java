@@ -19,7 +19,9 @@ public class FicBot {
     //private final static long serverId = 1259531516854276156L;
     private static String token = "MTI1OTUzMDI4MDMzNTU3NzE3MA.G8JiDR.D2Ed5Kqy3WhXSSBGQRiLI2B9Ku3EUF6ybjIuoU";
     private static long serverId = 1259531516854276156L;
-    public static GatewayDiscordClient  login(String token) {
+    
+    
+    public static GatewayDiscordClient login(String token) {
         return DiscordClient.create(token).login().block();
     }
 
@@ -33,9 +35,9 @@ public class FicBot {
             .then().block();
     }
 
-    public static Mono<ApplicationCommandData> registerSlashCommand(GatewayDiscordClient gateway) {
+    public static Mono<ApplicationCommandData> registerReadCommand(GatewayDiscordClient gateway, long applicationId) {
 
-        long applicationId = FicBot.login(token).getRestClient().getApplicationId().block();
+        System.out.println("Creating read command!");
 
         ApplicationCommandOptionData optionData = ApplicationCommandOptionData.builder()
             .name("name")
@@ -52,6 +54,22 @@ public class FicBot {
 
             return gateway.getRestClient().getApplicationService()
                 .createGlobalApplicationCommand(applicationId, commandRequest)
+                .onErrorResume(e -> {
+                    e.printStackTrace();
+                    return Mono.empty();
+                });
+    }
+
+    public static Mono<ApplicationCommandData> registerEndLoopCommand(GatewayDiscordClient gateway, long applicationId) {
+        
+        System.out.println("Creating endloop command!");
+        ApplicationCommandRequest commandRequest1 = ApplicationCommandRequest.builder()
+            .name("endloop")
+            .description("Tells the bot that the scraping loop should end")
+            .build();
+
+            return gateway.getRestClient().getApplicationService()
+                .createGlobalApplicationCommand(applicationId, commandRequest1)
                 .onErrorResume(e -> {
                     e.printStackTrace();
                     return Mono.empty();
@@ -80,5 +98,13 @@ public class FicBot {
         }
 
         return event.reply(reply).then();
+    }
+
+
+    public static Mono<Void> handleEndLoopCommand(ChatInputInteractionEvent event) {
+        System.out.println("Interaction Event Details:");
+        System.out.println("Command Name: " + event.getCommandName());
+        return event.reply(String.format("The loop has now ended!")).then();
+
     }
 }
