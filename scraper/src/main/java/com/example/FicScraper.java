@@ -4,6 +4,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -81,7 +84,7 @@ public class FicScraper {
 
             fic = new Fiction(getUrlOfFic(),ficID, title, author, chapterAmount, description);
         } catch (Exception e) {
-            // TODO: handle exception
+            System.out.println(e.getMessage());
         }
         return fic;
     }
@@ -117,6 +120,28 @@ public class FicScraper {
             chapFound = true; 
         }
         return chapFound;
+    }
+
+    public String searchForLatestChapLink() {
+        String linkToLatestChap = "";
+        List<String> allChapterLinks;
+        try {
+            Document document = Jsoup.connect(this.urlOfFic).get();
+            Elements allChapters = document.select("table#chapters tbody tr");
+            
+            allChapterLinks = allChapters
+                .stream()
+                .map(chapter -> chapter.attr("data-url"))
+                .collect(Collectors.toList());
+
+            
+            linkToLatestChap = "https://www.royalroad.com" + allChapterLinks.get(allChapterLinks.size() - 1);
+            System.out.println("Found latest chapter link.");
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+        return linkToLatestChap;
+
     }
 
 
