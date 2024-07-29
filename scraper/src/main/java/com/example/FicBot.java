@@ -76,6 +76,22 @@ public class FicBot {
                 });
     }
 
+    public static Mono<ApplicationCommandData> registerStartLoopCommand(GatewayDiscordClient gateway, long applicationId) {
+        
+        System.out.println("Creating startLoop command!");
+        ApplicationCommandRequest commandRequest1 = ApplicationCommandRequest.builder()
+            .name("startloop")
+            .description("Tells the bot that the scraping loop should start")
+            .build();
+
+            return gateway.getRestClient().getApplicationService()
+                .createGlobalApplicationCommand(applicationId, commandRequest1)
+                .onErrorResume(e -> {
+                    e.printStackTrace();
+                    return Mono.empty();
+                });
+    }
+
     public static Mono<Void> handleReadCommand(ChatInputInteractionEvent event) {
         String reply;
         JsonDeserializer jsonDeserializer = new JsonDeserializer();
@@ -105,6 +121,13 @@ public class FicBot {
         System.out.println("Interaction Event Details:");
         System.out.println("Command Name: " + event.getCommandName());
         return event.reply(String.format("The loop has now ended!")).then();
+
+    }
+
+    public static Mono<Void> handleStartLoopCommand(ChatInputInteractionEvent event) {
+        System.out.println("Interaction Event Details:");
+        System.out.println("Command Name: " + event.getCommandName());
+        return event.reply(String.format("The loop has now started!")).then();
 
     }
 }

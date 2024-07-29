@@ -5,7 +5,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.sql.Time;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
@@ -28,6 +27,7 @@ public class Main {
     private static String generalChat = "";
     private static JsonDeserializer jsonDeserializer = new JsonDeserializer();
     private static boolean runLoop = true;
+    private static Thread loopThread = null;
 
     public static void main(String[] args) {
         boolean notQ = true;
@@ -36,10 +36,12 @@ public class Main {
         long applicationId = gateWay1.getRestClient().getApplicationId().block();
 
         if (gateWay1 != null) {
-            Mono<ApplicationCommandData> brotato = FicBot.registerReadCommand(gateWay1, applicationId);
-            Mono<ApplicationCommandData> smotato = FicBot.registerEndLoopCommand(gateWay1, applicationId);
+            Mono<ApplicationCommandData> readCommand = FicBot.registerReadCommand(gateWay1, applicationId);
+            Mono<ApplicationCommandData> endLoopCommand = FicBot.registerEndLoopCommand(gateWay1, applicationId);
+            Mono<ApplicationCommandData> startLoopCommand = FicBot.registerStartLoopCommand(gateWay1, applicationId);
+
             
-            brotato.doOnSuccess(commandData -> {
+            readCommand.doOnSuccess(commandData -> {
                 if (commandData != null) {
                     System.out.println("Read command registered successfully: " + commandData.name());
                 } else {
@@ -48,7 +50,16 @@ public class Main {
 
             }).subscribe();
 
-            smotato.doOnSuccess(commandData -> {
+            endLoopCommand.doOnSuccess(commandData -> {
+                if (commandData != null) {
+                    System.out.println("endloop command registered successfully: " + commandData.name());
+                } else {
+                    System.err.println("Failed to register endloop command.");
+                }
+
+            }).subscribe();
+
+            startLoopCommand.doOnSuccess(commandData -> {
                 if (commandData != null) {
                     System.out.println("endloop command registered successfully: " + commandData.name());
                 } else {
@@ -61,15 +72,18 @@ public class Main {
 
 
         
-        Runnable potato = () -> {
+        Runnable handleDiscCommands = () -> {
             FicBot.sendMessage(gateWay1, generalChat, String.format("Listening for commands!"));
             recieveDiscCommand(gateWay1);
         };
-        Thread discordListenThread = new Thread(potato);
+
+
+        Thread discordListenThread = new Thread(handleDiscCommands);
+        loopThread = new Thread(() ->  {
+            scrapeFicLoop(gateWay1);
+        });
 
         discordListenThread.start();
-
-                
         
         // Handle command interactions
         // TODO use cookie saving for cloudflare
@@ -79,6 +93,7 @@ public class Main {
                 int menuNav = Integer.parseInt(menu());
                 switch (menuNav) {
                     case 1:
+                        //Ends of magic and Syl do not work, they get registered as null.
                         putFicInJson();
                     break;
                     case 2:
@@ -140,7 +155,17 @@ public class Main {
                         return FicBot.handleReadCommand(event);
                     case "endloop":
                         runLoop = false;
+                        try {
+                            loopThread.join();
+                        } catch (Exception e) {
+                            // TODO: handle exception
+                        }
                         return FicBot.handleEndLoopCommand(event);
+                    case "startloop":
+                        runLoop = true;
+                        loopThread.start();
+                        //TODO main menu perhaps not needed anymore with interaction through disc.
+                        return FicBot.handleStartLoopCommand(event);
                     default:
                     return Mono.empty();
                 }
