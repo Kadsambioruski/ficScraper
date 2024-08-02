@@ -50,7 +50,57 @@ public class JsonDeserializer {
         }
     }
 
-    public String setFicChapter(String ficName) {
+
+    public int getFicId(String ficName) {
+        String filePath = "scraper/src/main/java/com/example/fics.json";
+        int ficId = 0;
+        
+        try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
+        InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
+            
+            JsonNode rootNode = objectMapper.readTree(inputStreamReader);
+            
+            JsonNode fictionsArray = rootNode.path("fictions");
+            if (fictionsArray.isArray()) {
+                for (JsonNode fictionNode : fictionsArray) {
+                    if (fictionNode.path("title").asText().equals(ficName)) {
+                            ficId = fictionNode.path("ficID").asInt();
+                            
+                        }
+                    }
+                }                
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+        return ficId;
+    }
+
+    public String getFicLink(String ficName) {
+        String filePath = "scraper/src/main/java/com/example/fics.json";
+        String ficLink = "";
+        
+        try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
+        InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
+            
+            JsonNode rootNode = objectMapper.readTree(inputStreamReader);
+            
+            JsonNode fictionsArray = rootNode.path("fictions");
+            if (fictionsArray.isArray()) {
+                for (JsonNode fictionNode : fictionsArray) {
+                    if (fictionNode.path("title").asText().equals(ficName)) {
+                            ficLink = fictionNode.path("ficLink").asText();
+                            
+                        }
+                    }
+                }                
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+        return ficLink;
+    }
+
+
+    public String setFicChapter(String ficName, int chapter) {
         String filePath = "scraper/src/main/java/com/example/fics.json";
         boolean found = false;
         String returnStatement;
@@ -64,9 +114,9 @@ public class JsonDeserializer {
             if (fictionsArray.isArray()) {
                 for (JsonNode fictionNode : fictionsArray) {
                     if (fictionNode.path("title").asText().equals(ficName)) {
-                            int ficId = fictionNode.path("ficID").asInt();
-                            FicScraper ficScraper2 = new FicScraper(getFicLink(ficId));
-                            ((ObjectNode) fictionNode).put("chapAmount", ficScraper2.searchForChap());
+                            //int ficId = fictionNode.path("ficID").asInt();
+                            //FicScraper ficScraper2 = new FicScraper(getFicLink(ficId));
+                            ((ObjectNode) fictionNode).put("chapAmount", chapter);
                             found = true;
                         }
                     }
@@ -76,7 +126,7 @@ public class JsonDeserializer {
                         objectMapper.writerWithDefaultPrettyPrinter().writeValue(fileOutputStream, rootNode);
                             
                         } 
-                        returnStatement = "Chapter amount succesfully updated!";
+                        returnStatement = "Chapter amount succesfully updated to: " + chapter;
                     } else {
                         returnStatement = "Fic with specified name not found";
                     }
