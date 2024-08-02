@@ -36,53 +36,24 @@ public class Main {
         long applicationId = gateWay1.getRestClient().getApplicationId().block();
 
         if (gateWay1 != null) {
-            Mono<ApplicationCommandData> readCommand = FicBot.registerReadCommand(gateWay1, applicationId);
-            Mono<ApplicationCommandData> endLoopCommand = FicBot.registerEndLoopCommand(gateWay1, applicationId);
-            Mono<ApplicationCommandData> startLoopCommand = FicBot.registerStartLoopCommand(gateWay1, applicationId);
-
-            
-            readCommand.doOnSuccess(commandData -> {
-                if (commandData != null) {
-                    System.out.println("Read command registered successfully: " + commandData.name());
-                } else {
-                    System.err.println("Failed to register read command.");
-                }
-
-            }).subscribe();
-
-            endLoopCommand.doOnSuccess(commandData -> {
-                if (commandData != null) {
-                    System.out.println("endloop command registered successfully: " + commandData.name());
-                } else {
-                    System.err.println("Failed to register endloop command.");
-                }
-
-            }).subscribe();
-
-            startLoopCommand.doOnSuccess(commandData -> {
-                if (commandData != null) {
-                    System.out.println("endloop command registered successfully: " + commandData.name());
-                } else {
-                    System.err.println("Failed to register endloop command.");
-                }
-
-            }).subscribe();
-
+            registerCommands(gateWay1).subscribe();
+            FicBot.handleSelectMenuInteractions(gateWay1);
+            FicBot.handleButtonInteractions(gateWay1);
         }
-
-
+        
+        
         
         Runnable handleDiscCommands = () -> {
             FicBot.sendMessage(gateWay1, generalChat, String.format("Listening for commands!"));
             recieveDiscCommand(gateWay1);
         };
-
-
+        
+        
         Thread discordListenThread = new Thread(handleDiscCommands);
         loopThread = new Thread(() ->  {
             scrapeFicLoop(gateWay1);
         });
-
+        
         discordListenThread.start();
         
         // Handle command interactions
@@ -147,6 +118,18 @@ public class Main {
     }
 
 
+    private static Mono<Void> registerCommands(GatewayDiscordClient gateway) {
+        long applicationId = gateway.getRestClient().getApplicationId().block();
+
+        Mono<ApplicationCommandData> readCommand = FicBot.registerReadCommand(gateway, applicationId);
+        Mono<ApplicationCommandData> endLoopCommand = FicBot.registerEndLoopCommand(gateway, applicationId);
+        Mono<ApplicationCommandData> startLoopCommand = FicBot.registerStartLoopCommand(gateway, applicationId);
+
+        return Mono.when(readCommand, endLoopCommand, startLoopCommand)
+                .doOnSuccess(v -> System.out.println("Commands registered successfully"))
+                .then();
+    }
+
     public static void recieveDiscCommand(GatewayDiscordClient gateway){
         gateway.on(ChatInputInteractionEvent.class)
             .flatMap(event -> {
@@ -162,9 +145,9 @@ public class Main {
                         }
                         return FicBot.handleEndLoopCommand(event);
                     case "startloop":
-                        runLoop = true;
-                        loopThread.start();
-                        //TODO main menu perhaps not needed anymore with interaction through disc.
+                    runLoop = true;
+                    loopThread.start();
+                    //TODO main menu perhaps not needed anymore with interaction through disc.
                         return FicBot.handleStartLoopCommand(event);
                     default:
                     return Mono.empty();
@@ -198,6 +181,9 @@ public class Main {
         
         FicScraper ficScraper2 = new FicScraper(jsonDeserializer.getFicLink(parsedFicNumber));
         
+        //ficScraper2.searchForLatestChapLink();
+        
+        System.out.println("potato smotato");
         System.out.println(jsonDeserializer.getChapAmountInJSON(parsedFicNumber));
         
         if (ficScraper2.checkUpdatedChap(parsedFicNumber)) {
@@ -253,9 +239,8 @@ public class Main {
                                 
                                 
                                 FicBot.sendMessage(gateWay, generalChat,
-                                String.format("New chapter found! Latest chapter in "
-                                + jsonDeserializer.getFicTitle(ficId) + " is: "
-                                + Integer.parseInt(ficScraper3.searchForChap())));
+                                String.format("New chapter found! New chapter found in %s is: %d\nLink: %s", jsonDeserializer.getFicTitle(ficId),
+                                Integer.parseInt(jsonDeserializer.getChapAmountInJSON(ficId)) + 1, ficScraper3.nextChapFicLink(jsonDeserializer.getFicTitle(ficId))));
                             }
                         }
                     }
