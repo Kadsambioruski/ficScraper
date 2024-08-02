@@ -1,5 +1,4 @@
 package com.example;
-import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -17,22 +16,16 @@ import discord4j.core.object.command.ApplicationCommandOption;
 import discord4j.core.object.component.ActionRow;
 import discord4j.core.object.component.Button;
 import discord4j.core.object.component.SelectMenu;
-import discord4j.core.object.component.SelectMenu.Option;
 import discord4j.core.object.entity.Message;
 import discord4j.core.object.entity.channel.MessageChannel;
 import discord4j.core.spec.MessageCreateSpec;
-import discord4j.core.spec.MessageEditMono;
-import discord4j.core.spec.MessageEditSpec;
+
 import discord4j.discordjson.json.ApplicationCommandData;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import discord4j.discordjson.json.ApplicationCommandRequest;
-import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 
 public class FicBot {
-    //private final static long serverId = 1259531516854276156L;
-    private static String token = "MTI1OTUzMDI4MDMzNTU3NzE3MA.G8JiDR.D2Ed5Kqy3WhXSSBGQRiLI2B9Ku3EUF6ybjIuoU";
-    private static long serverId = 1259531516854276156L;
     private static Message existingMessage = null;
     
     public static GatewayDiscordClient login(String token) {
@@ -106,7 +99,6 @@ public class FicBot {
                 });
     }
 
-    //TODO find out how to edit existing message instead of sending one message/page
     public static Mono<Void> handleReadCommand(ChatInputInteractionEvent event) {
         JsonDeserializer jsonDeserializer = new JsonDeserializer();
 
@@ -160,26 +152,27 @@ public class FicBot {
             .map(chapterName -> SelectMenu.Option.of(chapterName, chapterName))
             .toList();
 
-        // Create a SelectMenu with the given ID and options
         return SelectMenu.of("chapList", options);
     }
 
     // Method to send the paginated menu
     public static Mono<Void> sendPaginatedMenu(GatewayDiscordClient gateway, String channelId, String ficName, List<String> chapterNames, int page) {
-        int pageSize = 25; // Number of options per page
+        int pageSize = 25; // Number of chapters per page
         int totalPages = (int) Math.ceil((double) chapterNames.size() / pageSize);
     
         
         Snowflake channelSnowflake = Snowflake.of(channelId);
         
         List<String> currentPageChapters = chapterNames.stream()
-        .skip(page * pageSize)
-        .limit(pageSize)
-        .collect(Collectors.toList());
+            .skip(page * pageSize)
+            .limit(pageSize)
+            .collect(Collectors.toList());
         
         SelectMenu selectMenu = createChapSelectMenu(currentPageChapters);
         ActionRow selectMenuRow = ActionRow.of(selectMenu);
-        ActionRow navigationRow = createNavigationButtons(page > 0, page < totalPages - 1);
+        boolean isFirstPage = page == 0;
+        boolean isLastPage = page == totalPages - 1;
+        ActionRow navigationRow = createNavigationButtons(page > 0, page < totalPages - 1, isFirstPage, isLastPage);
         
         MessageCreateSpec spec = MessageCreateSpec.builder()
             .content(String.format("Choose the chapter that you have read for '%s':\nPage %d of %d", ficName, page + 1, totalPages))
@@ -227,16 +220,19 @@ public class FicBot {
                 try {
                     return Integer.parseInt(messageContent.substring(start, end)) - 1; // Subtract 1 to get zero-based page index
                 } catch (NumberFormatException e) {
-                    // Log error or handle it appropriately
+                    System.out.println("Error: " + e.getMessage());
                 }
             }
         }
-        return 0; // Default to first page if parsing fails
+        return 0; 
     }
     
 
-    public static ActionRow createNavigationButtons(boolean hasPreviousPage, boolean hasNextPage) {
+    public static ActionRow createNavigationButtons(boolean hasPreviousPage, boolean hasNextPage, boolean isFirstPage, boolean isLastPage) {
         // Create the Previous button (disabled if on the first page)
+        Button firstButton = Button.primary("first_page", "First")
+            .disabled(isFirstPage);
+        
         Button prevButton = Button.primary("prev_page", "Previous")
             .disabled(!hasPreviousPage);
     
@@ -244,11 +240,13 @@ public class FicBot {
         Button nextButton = Button.primary("next_page", "Next")
             .disabled(!hasNextPage);
     
+        Button lastButton = Button.primary("last_page", "Last")
+            .disabled(isLastPage);
         // Add both buttons to an ActionRow
-        return ActionRow.of(prevButton, nextButton);
+        return ActionRow.of(firstButton, prevButton, nextButton, lastButton);
     }
 
-    //Find better way to pageinate (discord does not support textfields yet)
+
     public static void handleButtonInteractions(GatewayDiscordClient gateway) {
         gateway.on(ButtonInteractionEvent.class).subscribe(event -> {
             String customId = event.getCustomId();
@@ -260,11 +258,25 @@ public class FicBot {
             // Extract the fic name and current page from the message content
             String ficName = extractFicNameFromMessage(messageContent);
             int currentPage = extractPageFromMessage(messageContent);
-    
-            // Fetch all chapter names for the given fic
             List<String> chapters = FicScraper.getAllChapterNames(ficName);
     
-            int newPage = customId.equals("prev_page") ? currentPage - 1 : currentPage + 1;
+            int newPage;
+            switch (customId) {
+                case "first_page":
+                    newPage = 0;
+                    break;
+                case "prev_page":
+                    newPage = currentPage - 1;
+                    break;
+                case "next_page":
+                    newPage = currentPage + 1;
+                    break;
+                case "last_page":
+                    newPage = (int) Math.ceil((double) chapters.size() / 25) - 1;     
+                    break;
+                default:
+                    return;                                   
+            }    
     
             // Send the updated paginated menu
             sendPaginatedMenu(gateway, channelId, ficName, chapters, newPage).subscribe();
@@ -273,6 +285,9 @@ public class FicBot {
             event.acknowledge().subscribe();
         });
     }
+
+
+
 
     public static void handleSelectMenuInteractions(GatewayDiscordClient gateway) {
         JsonDeserializer jsonDeserializer = new JsonDeserializer();
