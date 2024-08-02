@@ -121,20 +121,75 @@ public class FicScraper {
         }
         return chapFound;
     }
+    
+    
+    public List<String> getAllChapterLinks(String ficName) {
+        List<String> allChapterLinks = null;
+        JsonDeserializer jsonDeserializer = new JsonDeserializer();
+
+        try {
+            Document document = Jsoup.connect(jsonDeserializer.getFicLink(ficName)).get();
+            Elements allChapters = document.select("table#chapters tbody tr");
+            
+            allChapterLinks = allChapters
+            .stream()
+            .map(chapter -> chapter.attr("data-url"))
+            .collect(Collectors.toList());
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+        return allChapterLinks;
+    }
+    
+    public String nextChapFicLink(String ficName) {
+        //Go through the list of links until it reaches chapAmount + 1 and return that link
+        JsonDeserializer jsonDeserializer = new JsonDeserializer();
+        List<String> allChapterLinks = null;
+        String chapterLink = null;
+        try {
+            int ficId = jsonDeserializer.getFicId(ficName);
+            int chapAmount = Integer.parseInt(jsonDeserializer.getChapAmountInJSON(ficId));
+            allChapterLinks = getAllChapterLinks(ficName);
+
+            
+            if (chapAmount < allChapterLinks.size()) {
+                chapterLink = "https://www.royalroad.com" + allChapterLinks.get(chapAmount);
+                System.out.println("Chapter link found: " + chapterLink);
+            } else {
+                System.out.println("Chapter link not found: requested index is out of bounds.");
+            }
+            
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+        return chapterLink;
+    }
+
+    public static List<String> getAllChapterNames(String ficName) {
+        JsonDeserializer jsonDeserializer = new JsonDeserializer();
+        List<String> allChapterNames = null;
+        try {
+            Document document = Jsoup.connect(jsonDeserializer.getFicLink(ficName)).get();
+            Elements allChapters = document.select("table#chapters tbody tr");
+            
+            allChapterNames = allChapters
+                .stream()
+                .map(chapter -> chapter.select("a").first().text())
+                .collect(Collectors.toList());
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+        return allChapterNames;
+    }
+
 
     public String searchForLatestChapLink() {
         String linkToLatestChap = "";
         List<String> allChapterLinks;
         try {
-            Document document = Jsoup.connect(this.urlOfFic).get();
-            Elements allChapters = document.select("table#chapters tbody tr");
-            
-            allChapterLinks = allChapters
-                .stream()
-                .map(chapter -> chapter.attr("data-url"))
-                .collect(Collectors.toList());
+            //4
+            allChapterLinks = getAllChapterLinks();
 
-            
             linkToLatestChap = "https://www.royalroad.com" + allChapterLinks.get(allChapterLinks.size() - 1);
             System.out.println("Found latest chapter link.");
         } catch (Exception e) {
