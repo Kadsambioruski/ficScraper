@@ -3,6 +3,7 @@ package com.example;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -28,10 +29,9 @@ public class Main {
     private static JsonDeserializer jsonDeserializer = new JsonDeserializer();
     private static boolean runLoop = true;
     private static Thread loopThread = null;
-
+    private static GatewayDiscordClient gateWay1 = FicBot.login(token);
     public static void main(String[] args) {
         boolean notQ = true;
-        GatewayDiscordClient gateWay1 = FicBot.login(token);
 
         long applicationId = gateWay1.getRestClient().getApplicationId().block();
 
@@ -139,14 +139,21 @@ public class Main {
                     case "endloop":
                         runLoop = false;
                         try {
+                            loopThread.interrupt();
                             loopThread.join();
-                        } catch (Exception e) {
-                            // TODO: handle exception
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                            Thread.currentThread().interrupt();
                         }
                         return FicBot.handleEndLoopCommand(event);
                     case "startloop":
-                    runLoop = true;
-                    loopThread.start();
+                        runLoop = true;
+                        if (loopThread == null || !loopThread.isAlive()) {
+                            loopThread = new Thread(() ->  {
+                                scrapeFicLoop(gateWay1);
+                            });
+                        }
+                        loopThread.start();
                     //TODO main menu perhaps not needed anymore with interaction through disc.
                         return FicBot.handleStartLoopCommand(event);
                     default:
@@ -199,7 +206,7 @@ public class Main {
     public static void scrapeFicLoop(GatewayDiscordClient gateWay){
         LocalDateTime startTime = LocalDateTime.now();
         System.out.println("Loop has started!");
-        String filePath = "scraper/src/main/java/com/example/fics.json";
+        InputStream filePath = Main.class.getClassLoader().getResourceAsStream("fics.json");
         Map<Integer, Integer> lastSeenChapters = new HashMap<>();
         
         LocalDateTime nextTime = LocalDateTime.now().withMinute(0).withSecond(0);
@@ -215,9 +222,7 @@ public class Main {
             } else {
                 nextTime = LocalDateTime.now().plusHours(3);
             }
-            try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
-            InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream,
-            StandardCharsets.UTF_8)) { // Translates the text to UTF_8
+            try (InputStreamReader inputStreamReader = new InputStreamReader(filePath, StandardCharsets.UTF_8)) { // Translates the text to UTF_8
                 
                 
                 ObjectMapper objectMapper = new ObjectMapper();
