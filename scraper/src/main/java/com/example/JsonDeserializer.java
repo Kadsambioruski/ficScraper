@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
@@ -14,16 +15,14 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class JsonDeserializer {
     private final ObjectMapper objectMapper = new ObjectMapper();
-    
+    private static final String filePath = "fics.json";
     public JsonDeserializer(){}
 
     public void readJsonFile() {
         int i = 1;
-        String filePath = "scraper/src/main/java/com/example/fics.json";
-        try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
-            InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(filePath)) { // Translates the text to UTF_8
         
-            JsonNode rootNode = objectMapper.readTree(inputStreamReader);
+            JsonNode rootNode = objectMapper.readTree(inputStream);
            
             JsonNode fictionsArray = rootNode.path("fictions");
                 if (fictionsArray.isArray()) {
@@ -52,13 +51,11 @@ public class JsonDeserializer {
 
 
     public int getFicId(String ficName) {
-        String filePath = "scraper/src/main/java/com/example/fics.json";
         int ficId = 0;
         
-        try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
-        InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(filePath)) { // Translates the text to UTF_8
             
-            JsonNode rootNode = objectMapper.readTree(inputStreamReader);
+            JsonNode rootNode = objectMapper.readTree(inputStream);
             
             JsonNode fictionsArray = rootNode.path("fictions");
             if (fictionsArray.isArray()) {
@@ -76,13 +73,11 @@ public class JsonDeserializer {
     }
 
     public String getFicLink(String ficName) {
-        String filePath = "scraper/src/main/java/com/example/fics.json";
         String ficLink = "";
         
-        try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
-        InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(filePath)){ // Translates the text to UTF_8
             
-            JsonNode rootNode = objectMapper.readTree(inputStreamReader);
+            JsonNode rootNode = objectMapper.readTree(inputStream);
             
             JsonNode fictionsArray = rootNode.path("fictions");
             if (fictionsArray.isArray()) {
@@ -101,7 +96,7 @@ public class JsonDeserializer {
 
 
     public String setFicChapter(String ficName, int chapter) {
-        String filePath = "scraper/src/main/java/com/example/fics.json";
+        String filePath = "scraper/src/main/resources/fics.json";
         boolean found = false;
         String returnStatement;
 
@@ -109,8 +104,8 @@ public class JsonDeserializer {
         InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
             
             JsonNode rootNode = objectMapper.readTree(inputStreamReader);
-            
             JsonNode fictionsArray = rootNode.path("fictions");
+            
             if (fictionsArray.isArray()) {
                 for (JsonNode fictionNode : fictionsArray) {
                     if (fictionNode.path("title").asText().equals(ficName)) {
@@ -145,12 +140,10 @@ public class JsonDeserializer {
     
     public String getChapAmountInJSON(int ficNumber) {
         String returnStatement = "";
-        String filePath = "scraper/src/main/java/com/example/fics.json";
 
-        try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
-            InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(filePath)){ // Translates the text to UTF_8
         
-            JsonNode rootNode = objectMapper.readTree(inputStreamReader);
+            JsonNode rootNode = objectMapper.readTree(inputStream);
            
             JsonNode fictionsArray = rootNode.path("fictions");
                 if (fictionsArray.isArray()) {
@@ -173,13 +166,11 @@ public class JsonDeserializer {
 
     public String getFicLink(int ficNumber) {
         String returnStatement = "";
-        String filePath = "scraper/src/main/java/com/example/fics.json";
+       
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(filePath)){ // Translates the text to UTF_8
+            
+            JsonNode rootNode = objectMapper.readTree(inputStream);
 
-        try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
-            InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
-        
-            JsonNode rootNode = objectMapper.readTree(inputStreamReader);
-           
             JsonNode fictionsArray = rootNode.path("fictions");
                 if (fictionsArray.isArray()) {
                     for (JsonNode fictionNode : fictionsArray) {
@@ -200,12 +191,10 @@ public class JsonDeserializer {
 
     public String getFicTitle(int ficNumber) {
         String returnStatement = "";
-        String filePath = "scraper/src/main/java/com/example/fics.json";
 
-        try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
-            InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(filePath)){ // Translates the text to UTF_8
         
-            JsonNode rootNode = objectMapper.readTree(inputStreamReader);
+            JsonNode rootNode = objectMapper.readTree(inputStream);
            
             JsonNode fictionsArray = rootNode.path("fictions");
                 if (fictionsArray.isArray()) {
@@ -227,12 +216,10 @@ public class JsonDeserializer {
 
     public boolean matchFicTitle(String fitTitle) {
         boolean titleFound = false;
-        String filePath = "scraper/src/main/java/com/example/fics.json";
 
-        try (FileInputStream fileInputStream = new FileInputStream(new File(filePath));
-            InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8)){ // Translates the text to UTF_8
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(filePath)){ // Translates the text to UTF_8
         
-            JsonNode rootNode = objectMapper.readTree(inputStreamReader);
+            JsonNode rootNode = objectMapper.readTree(inputStream);
            
             JsonNode fictionsArray = rootNode.path("fictions");
                 if (fictionsArray.isArray()) {
