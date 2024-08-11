@@ -159,14 +159,14 @@ public class FicBot {
     public static Mono<Void> sendPaginatedMenu(GatewayDiscordClient gateway, String channelId, String ficName, List<String> chapterNames, int page) {
         int pageSize = 25; // Number of chapters per page
         int totalPages = (int) Math.ceil((double) chapterNames.size() / pageSize);
-    
+        Pattern messageContentPattern = Pattern.compile("Choose the chapter that you have read for '(.*?)':\\nPage (\\d+) of (\\d+)");
         
         Snowflake channelSnowflake = Snowflake.of(channelId);
         
         List<String> currentPageChapters = chapterNames.stream()
-            .skip(page * pageSize)
-            .limit(pageSize)
-            .collect(Collectors.toList());
+        .skip(page * pageSize)
+        .limit(pageSize)
+        .collect(Collectors.toList());
         
         SelectMenu selectMenu = createChapSelectMenu(currentPageChapters);
         ActionRow selectMenuRow = ActionRow.of(selectMenu);
@@ -175,26 +175,40 @@ public class FicBot {
         ActionRow navigationRow = createNavigationButtons(page > 0, page < totalPages - 1, isFirstPage, isLastPage);
         
         MessageCreateSpec spec = MessageCreateSpec.builder()
-            .content(String.format("Choose the chapter that you have read for '%s':\nPage %d of %d", ficName, page + 1, totalPages))
-            .addComponent(selectMenuRow)
-            .addComponent(navigationRow)
-            .build();
-
-         return gateway.getChannelById(channelSnowflake)
+        .content(String.format("Choose the chapter that you have read for '%s':\nPage %d of %d", ficName, page + 1, totalPages))
+        .addComponent(selectMenuRow)
+        .addComponent(navigationRow)
+        .build();
+        
+        return gateway.getChannelById(channelSnowflake)
         .ofType(MessageChannel.class)
         .flatMap(channel -> {
-            // Check if the message already exists
+            // Check if the message already exists (should instead check if the name of the fic read matches the existing message, if not create a new message and overwrite existing message)
             if (existingMessage == null) {
                 // Create and store the message
                 return channel.createMessage(spec)
-                    .doOnNext(message -> existingMessage = message) // Store the reference to the created message
-                    .then();
+                .doOnNext(message -> existingMessage = message) // Store the reference to the created message
+                .then();
             } else {
-                // Edit the existing message
+                if (existingMessage != null) {
+                    Matcher msgContentMatcher = messageContentPattern.matcher(existingMessage.getContent());
+                    if (msgContentMatcher.find()) {
+                        String ficNameFromMsg = msgContentMatcher.group(1);
+                        if (!ficNameFromMsg.equals(ficName)) {
+                            System.out.println(existingMessage.getContent());
+                            return channel.createMessage(spec)
+                                .doOnNext(message -> existingMessage = message) // Store the reference to the created message
+                                .then();
+                        }
+                    }
+                }
+
                 return existingMessage.edit()
                     .withContentOrNull(spec.content().get()) // Unwrap Possible<String> value
                     .withComponents(spec.components().get()) // Unwrap Possible<List<LayoutComponent>> value
                     .then();
+                
+                // Edit the existing message
             }
         });
     }
@@ -302,6 +316,7 @@ public class FicBot {
             // Set the chapter using the index instead of the content
             if (chapterIndex != -1) {
                 jsonDeserializer.setFicChapter(ficName, chapterIndex + 1); // Assuming 1-based index for chapter numbers
+                System.out.println(jsonDeserializer.setFicChapter(ficName, chapterIndex + 1));
                 event.reply()
                     .withContent("You selected: " + selectedValue + " (Chapter " + (chapterIndex + 1) + ")")
                     .subscribe();
