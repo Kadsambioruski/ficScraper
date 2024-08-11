@@ -2,10 +2,8 @@ package com.example;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+
 import java.util.List;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import org.jsoup.Jsoup;
@@ -47,7 +45,7 @@ public class FicScraper {
 
     public Fiction ficInformation() {
         Fiction fic = null;
-        String filePath = "scraper/src/main/java/com/example/fics.json";  
+        String filePath = "scraper/src/main/resources/fics.json";  
 
         
         try {
@@ -183,7 +181,7 @@ public class FicScraper {
     }
 
 
-    public String searchForLatestChapLink() {
+    /*public String searchForLatestChapLink() {
         String linkToLatestChap = "";
         List<String> allChapterLinks;
         try {
@@ -197,7 +195,7 @@ public class FicScraper {
         }
         return linkToLatestChap;
 
-    }
+    }*/
 
 
 }
