@@ -13,7 +13,7 @@ public class JsonSerializer {
     
     
     public void saveFicToJson(Fiction fiction) { 
-        String filePath = "scraper\\src\\main\\resources\\fics.json";
+        String filePath = "scraper\\src\\main\\java\\com\\example\\data\\fics.json";
         
         try {
             // Read existing data from the file

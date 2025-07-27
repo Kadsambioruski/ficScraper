@@ -19,7 +19,6 @@ import discord4j.core.object.component.SelectMenu;
 import discord4j.core.object.entity.Message;
 import discord4j.core.object.entity.channel.MessageChannel;
 import discord4j.core.spec.MessageCreateSpec;
-
 import discord4j.discordjson.json.ApplicationCommandData;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import discord4j.discordjson.json.ApplicationCommandRequest;
@@ -56,6 +55,31 @@ public class FicBot {
         ApplicationCommandRequest commandRequest = ApplicationCommandRequest.builder()
             .name("read")
             .description("Tells the bot that the chapter for the specific fic has been read")
+            .addOption(optionData)
+            .build();
+
+            return gateway.getRestClient().getApplicationService()
+                .createGlobalApplicationCommand(applicationId, commandRequest)
+                .onErrorResume(e -> {
+                    e.printStackTrace();
+                    return Mono.empty();
+                });
+    }
+
+    public static Mono<ApplicationCommandData> registerAddFicCommand(GatewayDiscordClient gateway, long applicationId) {
+
+        System.out.println("Creating add command!");
+
+        ApplicationCommandOptionData optionData = ApplicationCommandOptionData.builder()
+            .name("ficlink")
+            .description("Name of the fic you want to add")
+            .type(ApplicationCommandOption.Type.STRING.getValue())
+            .required(true)
+            .build();
+            
+        ApplicationCommandRequest commandRequest = ApplicationCommandRequest.builder()
+            .name("add")
+            .description("Tells the bot to add the fic given to the list of all fics being read")
             .addOption(optionData)
             .build();
 
@@ -116,7 +140,13 @@ public class FicBot {
         System.out.println("Recieved name of fic: " + nameOfFic);
         if (jsonDeserializer.matchFicTitle(nameOfFic)) {
             // Fetch all chapter names for the given fic
+            
             List<String> chapters = FicScraper.getAllChapterNames(nameOfFic); // Implement this method
+            if (chapters == null) {
+                System.out.println("for some reason chapters is null");
+            } else {
+                System.out.println("Chapters not null");
+            }
 
             // Send the select menu with chapters
             return sendPaginatedMenu(event.getClient(), event.getInteraction().getChannelId().asString(), nameOfFic, chapters, 0)
@@ -129,6 +159,23 @@ public class FicBot {
 
     }
 
+    public static Mono<Void> handleAddFicCommand(ChatInputInteractionEvent event) {
+        System.out.println("Interaction Event Details:");
+        System.out.println("Command Name: " + event.getCommandName());
+        System.out.println("Options: " + event.getOptions().toString());
+
+        String ficlink = event.getOption("ficlink")
+            .flatMap(ApplicationCommandInteractionOption::getValue)
+            .map(ApplicationCommandInteractionOptionValue::asString)
+            .orElse("Unknown Fic");
+
+
+
+        System.out.println("Recieved link of fic: " + ficlink);
+        
+        Main.putFicInJson(ficlink);
+        return event.reply(String.format("The fic with the link:" + ficlink + " has been added to the list")).then();
+    }
 
     public static Mono<Void> handleEndLoopCommand(ChatInputInteractionEvent event) {
         System.out.println("Interaction Event Details:");

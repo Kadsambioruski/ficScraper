@@ -45,7 +45,7 @@ public class FicScraper {
 
     public Fiction ficInformation() {
         Fiction fic = null;
-        String filePath = "scraper/src/main/resources/fics.json";  
+        String filePath = "scraper\\src\\main\\java\\com\\example\\data\\fics.json";  
 
         
         try {
@@ -168,6 +168,7 @@ public class FicScraper {
         List<String> allChapterNames = null;
         try {
             Document document = Jsoup.connect(jsonDeserializer.getFicLink(ficName)).get();
+            System.out.println("Here is the ficLink: " + jsonDeserializer.getFicLink(ficName).toString());
             Elements allChapters = document.select("table#chapters tbody tr");
             
             allChapterNames = allChapters
