@@ -2,8 +2,9 @@ package com.example;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.jsoup.Jsoup;
@@ -15,26 +16,23 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class FicScraper {
-    private String urlOfFic;
+    private final FicJsonHandler ficJsonHandler; 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final Set<Integer> updatedFics = new HashSet<>();
 
-    public FicScraper(){}
 
-    public FicScraper(String urlOfFic) {
-        this.urlOfFic = urlOfFic;
+    public FicScraper(){
+        this.ficJsonHandler = new FicJsonHandler();
     }
 
-    public String getUrlOfFic() {
-        return this.urlOfFic;
-    }
     //#endregion
 
 
-    public Elements connectToUrl() {
+    public Elements connectToUrl(String ficUrl) {
         Elements wrapper = new Elements();
     
         try {
-            Document document = Jsoup.connect(this.urlOfFic).get();
+            Document document = Jsoup.connect(ficUrl).get();
             wrapper = document.select(".mt-list-container.no-border.list-news.ext-1");
         } catch (IOException e) {
             e.printStackTrace();
@@ -43,7 +41,7 @@ public class FicScraper {
         return wrapper;
     }
 
-    public Fiction ficInformation() {
+    public Fiction ficInformation(String ficUrl) {
         Fiction fic = null;
         String filePath = "scraper\\src\\main\\java\\com\\example\\data\\fics.json";  
 
@@ -56,7 +54,7 @@ public class FicScraper {
             JsonNode fictionsArray = rootNode.path("fictions");
             int ficID = fictionsArray.size() + 1;
 
-            Document document = Jsoup.connect(this.urlOfFic).get();
+            Document document = Jsoup.connect(ficUrl).get();
             Elements titleAndAuthorContainer = document.select(".col");
             
             String title = titleAndAuthorContainer.select("h1").text();
@@ -80,24 +78,24 @@ public class FicScraper {
             System.out.println("Description: " + description);
             System.out.println("===============================================");
 
-            fic = new Fiction(getUrlOfFic(),ficID, title, author, chapterAmount, description);
-        } catch (Exception e) {
+            fic = new Fiction(ficUrl, ficID, title, author, chapterAmount, description);
+        } catch (IOException e) {
             System.out.println(e.getMessage());
         }
         return fic;
     }
 
 
-    public String searchForChap(){
+    public String searchForChap(String ficUrl){
         String output = "";
         try {
-            Document document = Jsoup.connect(this.urlOfFic).get();
+            Document document = Jsoup.connect(ficUrl).get();
             output = document.select("div.portlet.light > div.portlet-title > div.actions > span").text();
             String parsedOutput = output.split(" ")[0];
             return parsedOutput;
-        } catch (Exception e) {
+        } catch (IOException e) {
             // TODO: handle exception
-            e.printStackTrace();
+
         }
         return output;
     }
@@ -112,42 +110,54 @@ public class FicScraper {
     }
 
     public boolean checkUpdatedChap(int ficID){
-        boolean chapFound = false;
-        JsonDeserializer jsonDeserializer = new JsonDeserializer();
-        if (Integer.parseInt(jsonDeserializer.getChapAmountInJSON(ficID)) < Integer.parseInt(searchForChap())) {
-            chapFound = true; 
+        Fiction fic = ficJsonHandler.getFic(ficID);
+
+        int savedChapCount = Integer.parseInt(fic.getChapAmount()); 
+        int currentChapCount = Integer.parseInt(searchForChap(fic.getFicLink()));
+        if (savedChapCount < currentChapCount) {
+            updatedFics.add(ficID);
+            return true;
         }
-        return chapFound;
+        return false;
     }
     
-    
-    public List<String> getAllChapterLinks(String ficName) {
-        List<String> allChapterLinks = null;
-        JsonDeserializer jsonDeserializer = new JsonDeserializer();
+    public static List<Fiction> getUpdatedFics() {
+        return updatedFics.stream()
+            .map(id -> new FicJsonHandler().getFic(id))
+            .filter(fiction -> fiction != null)
+            .collect(Collectors.toList());
+    }
 
+    public static void clearFicUpdate(int ficId) {
+        updatedFics.remove(ficId);
+    }
+    
+    public List<String> getAllChapterLinks(int ficId) {
+        List<String> allChapterLinks = null;
+        Fiction fiction = ficJsonHandler.getFic(ficId);
+        
         try {
-            Document document = Jsoup.connect(jsonDeserializer.getFicLink(ficName)).get();
+            Document document = Jsoup.connect(fiction.getFicLink()).get();
             Elements allChapters = document.select("table#chapters tbody tr");
             
             allChapterLinks = allChapters
             .stream()
             .map(chapter -> chapter.attr("data-url"))
             .collect(Collectors.toList());
-        } catch (Exception e) {
+        } catch (IOException e) {
             // TODO: handle exception
         }
         return allChapterLinks;
     }
     
-    public String nextChapFicLink(String ficName) {
+    public String nextChapFicLink(int ficId) {
         //Go through the list of links until it reaches chapAmount + 1 and return that link
-        JsonDeserializer jsonDeserializer = new JsonDeserializer();
         List<String> allChapterLinks = null;
         String chapterLink = null;
         try {
-            int ficId = jsonDeserializer.getFicId(ficName);
-            int chapAmount = Integer.parseInt(jsonDeserializer.getChapAmountInJSON(ficId));
-            allChapterLinks = getAllChapterLinks(ficName);
+            Fiction fiction = ficJsonHandler.getFic(ficId);
+            int chapAmount = Integer.parseInt(fiction.getChapAmount());
+            allChapterLinks = getAllChapterLinks(ficId);
 
             
             if (chapAmount < allChapterLinks.size()) {
@@ -163,14 +173,13 @@ public class FicScraper {
         return chapterLink;
     }
 
-    public static List<String> getAllChapterNames(String ficName) {
-        JsonDeserializer jsonDeserializer = new JsonDeserializer();
+    public List<String> getAllChapterNames(int ficId) {
+        Fiction fiction = ficJsonHandler.getFic(ficId);
         List<String> allChapterNames = null;
         try {
-            Document document = Jsoup.connect(jsonDeserializer.getFicLink(ficName)).get();
-            System.out.println("Here is the ficLink: " + jsonDeserializer.getFicLink(ficName).toString());
+            Document document = Jsoup.connect(fiction.getFicLink()).get();
+            System.out.println("Here is the ficLink: " + fiction.getFicLink());
             Elements allChapters = document.select("table#chapters tbody tr");
-            
             allChapterNames = allChapters
                 .stream()
                 .map(chapter -> chapter.select("a").first().text())
@@ -180,24 +189,6 @@ public class FicScraper {
         }
         return allChapterNames;
     }
-
-
-    /*public String searchForLatestChapLink() {
-        String linkToLatestChap = "";
-        List<String> allChapterLinks;
-        try {
-            //4
-            allChapterLinks = getAllChapterLinks();
-
-            linkToLatestChap = "https://www.royalroad.com" + allChapterLinks.get(allChapterLinks.size() - 1);
-            System.out.println("Found latest chapter link.");
-        } catch (Exception e) {
-            // TODO: handle exception
-        }
-        return linkToLatestChap;
-
-    }*/
-
 
 }
 

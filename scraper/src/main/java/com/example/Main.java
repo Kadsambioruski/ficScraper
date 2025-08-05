@@ -12,42 +12,46 @@ import com.fasterxml.jackson.databind.JsonNode;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
 import discord4j.discordjson.json.ApplicationCommandData;
+import io.github.cdimascio.dotenv.Dotenv;
 import reactor.core.publisher.Mono;
 
 public class Main {
-    private static Scanner userInputScanner = new Scanner(System.in);
-    private final static String MENU_ITEM_Q = "-1";
-    private static String token = "";
-    private static String generalChat = "";
-    private static JsonDeserializer jsonDeserializer = new JsonDeserializer();
+    final private static Scanner userInputScanner = new Scanner(System.in);
+    final private static String MENU_ITEM_Q = "-1";
+    final private static Dotenv dotEnv = Dotenv.configure().directory("./scraper").load();
+    final private static String TOKEN = dotEnv.get("DISCORD_BOT_TOKEN");
+    final private static String DISCORD_SERVER_ID = dotEnv.get("DISCORD_SERVER_ID");
+    final private static String DISCORD_CHANNEL_ID = dotEnv.get("DISCORD_CHANNEL_ID"); 
+    final private static JsonDeserializer jsonDeserializer = new JsonDeserializer();
+    final private static FicJsonHandler ficJsonHandler = new FicJsonHandler();
+    final private static GatewayDiscordClient DISCORD_CLIENT = FicBot.login(TOKEN);
     private static boolean runLoop = true;
     private static Thread loopThread = null;
-    private static GatewayDiscordClient gateWay1 = FicBot.login(token);
     /*Should add json file for storing the fics that i have read through to the end. For now i will put them in this comment:
     Industrial Strength Magic
+    DIE.RESPAWN.REPEAT
     
     */     
     public static void main(String[] args) {
         boolean notQ = true;
 
 
-        if (gateWay1 != null) {
-            registerCommands(gateWay1).subscribe();
-            FicBot.handleSelectMenuInteractions(gateWay1);
-            FicBot.handleButtonInteractions(gateWay1);
+        if (DISCORD_CLIENT != null) {
+            registerCommands(DISCORD_CLIENT).subscribe();
+            FicBot.handleSelectMenuInteractions(DISCORD_CLIENT);
+            FicBot.handleButtonInteractions(DISCORD_CLIENT);
         }
         
         
-        
         Runnable handleDiscCommands = () -> {
-            FicBot.sendMessage(gateWay1, generalChat, String.format("Listening for commands!"));
-            recieveDiscCommand(gateWay1);
+            FicBot.sendMessage(DISCORD_CLIENT, DISCORD_CHANNEL_ID, String.format("Listening for commands!"));
+            recieveDiscCommand(DISCORD_CLIENT);
         };
         
         
         Thread discordListenThread = new Thread(handleDiscCommands);
         loopThread = new Thread(() ->  {
-            scrapeFicLoop(gateWay1);
+            scrapeFicLoop(DISCORD_CLIENT);
         });
         
         discordListenThread.start();
@@ -64,13 +68,13 @@ public class Main {
                         putFicInJson();
                     break;
                     case 2:
-                        jsonDeserializer.readJsonFile();
+                        jsonDeserializer.printJsonContent();
                     break;
                     case 3:
                         checkFicUpdates();
                     break;
                     case 4: 
-                        scrapeFicLoop(gateWay1);
+                        scrapeFicLoop(DISCORD_CLIENT);
                         break;
                     case -1:
                         notQ = false;
@@ -117,10 +121,10 @@ public class Main {
     private static Mono<Void> registerCommands(GatewayDiscordClient gateway) {
         long applicationId = gateway.getRestClient().getApplicationId().block();
 
-        Mono<ApplicationCommandData> readCommand = FicBot.registerReadCommand(gateway, applicationId);
-        Mono<ApplicationCommandData> endLoopCommand = FicBot.registerEndLoopCommand(gateway, applicationId);
-        Mono<ApplicationCommandData> startLoopCommand = FicBot.registerStartLoopCommand(gateway, applicationId);
-        Mono<ApplicationCommandData> addFicCommand = FicBot.registerAddFicCommand(gateway, applicationId);
+        Mono<ApplicationCommandData> readCommand = FicBot.registerReadCommand(gateway, DISCORD_SERVER_ID,  applicationId);
+        Mono<ApplicationCommandData> endLoopCommand = FicBot.registerEndLoopCommand(gateway, DISCORD_SERVER_ID, applicationId);
+        Mono<ApplicationCommandData> startLoopCommand = FicBot.registerStartLoopCommand(gateway, DISCORD_SERVER_ID, applicationId);
+        Mono<ApplicationCommandData> addFicCommand = FicBot.registerAddFicCommand(gateway, DISCORD_SERVER_ID, applicationId);
 
         return Mono.when(readCommand, endLoopCommand, startLoopCommand, addFicCommand)
                 .doOnSuccess(v -> System.out.println("Commands registered successfully"))
@@ -147,7 +151,7 @@ public class Main {
                         runLoop = true;
                         if (loopThread == null || !loopThread.isAlive()) {
                             loopThread = new Thread(() ->  {
-                                scrapeFicLoop(gateWay1);
+                                scrapeFicLoop(DISCORD_CLIENT);
                             });
                         }
                         loopThread.start();
@@ -171,11 +175,10 @@ public class Main {
         System.out.println("Put in link to new fic: ");
         String newLinkToFic = input();
         // TODO parse through input to check link format
-        FicScraper ficScraper = new FicScraper(newLinkToFic);
-        Fiction newFic = ficScraper.ficInformation();
+        FicScraper ficScraper = new FicScraper();
+        Fiction newFic = ficScraper.ficInformation(newLinkToFic);
         
-        JsonSerializer serializer = new JsonSerializer();
-        serializer.saveFicToJson(newFic);
+        ficJsonHandler.addFic(newFic);
         
         System.out.println("Fic added to JSON file: " + newFic);
     }
@@ -183,11 +186,10 @@ public class Main {
     public static void putFicInJson(String newLinkToFic){
         System.out.println("Put in link to new fic: ");
         // TODO parse through input to check link format
-        FicScraper ficScraper = new FicScraper(newLinkToFic);
-        Fiction newFic = ficScraper.ficInformation();
+        FicScraper ficScraper = new FicScraper();
+        Fiction newFic = ficScraper.ficInformation(newLinkToFic);
         
-        JsonSerializer serializer = new JsonSerializer();
-        serializer.saveFicToJson(newFic);
+        ficJsonHandler.addFic(newFic);
         
         System.out.println("Fic added to JSON file: " + newFic);
     }
@@ -195,21 +197,22 @@ public class Main {
     public static void checkFicUpdates(){
         System.out.println("Choose fic from list through fic Number");
         String ficNumberString = input();
-        int parsedFicNumber = Integer.parseInt(ficNumberString);
+        int ficId = Integer.parseInt(ficNumberString);
         
-        FicScraper ficScraper2 = new FicScraper(jsonDeserializer.getFicLink(parsedFicNumber));
+        Fiction fic = ficJsonHandler.getFic(ficId);
+        FicScraper ficScraper2 = new FicScraper();
         
         //ficScraper2.searchForLatestChapLink();
         
         System.out.println("potato smotato");
-        System.out.println(jsonDeserializer.getChapAmountInJSON(parsedFicNumber));
+        System.out.println(jsonDeserializer.getChapAmountInJSON(ficId));
         
-        if (ficScraper2.checkUpdatedChap(parsedFicNumber)) {
-            GatewayDiscordClient gateWay = FicBot.login(token);
-            FicBot.sendMessage(gateWay, generalChat,
+        if (ficScraper2.checkUpdatedChap(ficId)) {
+            GatewayDiscordClient gateWay = FicBot.login(TOKEN);
+            FicBot.sendMessage(gateWay, DISCORD_CHANNEL_ID,
             String.format("New chapter found! Latest chapter in "
-            + jsonDeserializer.getFicTitle(parsedFicNumber) + " is: "
-            + Integer.parseInt(ficScraper2.searchForChap())));
+            + jsonDeserializer.getFicTitle(ficId) + " is: "
+            + Integer.valueOf(ficScraper2.searchForChap(fic.getFicLink()))));
         }
     }
 
@@ -240,8 +243,9 @@ public class Main {
             if (fictionsArray.isArray()) {
                 for (JsonNode fictionNode : fictionsArray) {
                     int ficId = Integer.parseInt(fictionNode.path("ficID").asText());
-                    FicScraper ficScraper3 = new FicScraper(jsonDeserializer.getFicLink(ficId));
-                    int latestChapter = Integer.parseInt(ficScraper3.searchForChap());
+
+                    FicScraper ficScraper3 = new FicScraper();
+                    int latestChapter = Integer.parseInt(ficScraper3.searchForChap(fictionNode.path("ficLink").asText()));
                     
                     if (ficScraper3.checkUpdatedChap(ficId)) {
                         if (!lastSeenChapters.containsKey(ficId)|| lastSeenChapters.get(ficId) < latestChapter) {
@@ -249,9 +253,9 @@ public class Main {
                             lastSeenChapters.put(ficId, latestChapter);
                             
                             
-                            FicBot.sendMessage(gateWay, generalChat,
+                            FicBot.sendMessage(gateWay, DISCORD_CHANNEL_ID,
                             String.format("New chapter found! New chapter found in %s is: %d\nLink: %s", jsonDeserializer.getFicTitle(ficId),
-                            Integer.parseInt(jsonDeserializer.getChapAmountInJSON(ficId)) + 1, ficScraper3.nextChapFicLink(jsonDeserializer.getFicTitle(ficId))));
+                            Integer.parseInt(jsonDeserializer.getChapAmountInJSON(ficId)) + 1, ficScraper3.nextChapFicLink(ficId)));
                         }
                     }
                 }
