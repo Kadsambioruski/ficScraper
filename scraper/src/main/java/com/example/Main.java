@@ -22,7 +22,6 @@ public class Main {
     final private static String TOKEN = dotEnv.get("DISCORD_BOT_TOKEN");
     final private static String DISCORD_SERVER_ID = dotEnv.get("DISCORD_SERVER_ID");
     final private static String DISCORD_CHANNEL_ID = dotEnv.get("DISCORD_CHANNEL_ID"); 
-    final private static JsonDeserializer jsonDeserializer = new JsonDeserializer();
     final private static FicJsonHandler ficJsonHandler = new FicJsonHandler();
     final private static GatewayDiscordClient DISCORD_CLIENT = FicBot.login(TOKEN);
     private static boolean runLoop = true;
@@ -68,7 +67,7 @@ public class Main {
                         putFicInJson();
                     break;
                     case 2:
-                        jsonDeserializer.printJsonContent();
+                        ficJsonHandler.printJsonContent();
                     break;
                     case 3:
                         checkFicUpdates();
@@ -205,13 +204,13 @@ public class Main {
         //ficScraper2.searchForLatestChapLink();
         
         System.out.println("potato smotato");
-        System.out.println(jsonDeserializer.getChapAmountInJSON(ficId));
+        System.out.println(ficJsonHandler.getChapAmount(ficId));
         
         if (ficScraper2.checkUpdatedChap(ficId)) {
             GatewayDiscordClient gateWay = FicBot.login(TOKEN);
             FicBot.sendMessage(gateWay, DISCORD_CHANNEL_ID,
             String.format("New chapter found! Latest chapter in "
-            + jsonDeserializer.getFicTitle(ficId) + " is: "
+            + ficJsonHandler.getFicTitle(ficId) + " is: "
             + Integer.valueOf(ficScraper2.searchForChap(fic.getFicLink()))));
         }
     }
@@ -254,8 +253,8 @@ public class Main {
                             
                             
                             FicBot.sendMessage(gateWay, DISCORD_CHANNEL_ID,
-                            String.format("New chapter found! New chapter found in %s is: %d\nLink: %s", jsonDeserializer.getFicTitle(ficId),
-                            Integer.parseInt(jsonDeserializer.getChapAmountInJSON(ficId)) + 1, ficScraper3.nextChapFicLink(ficId)));
+                            String.format("New chapter found! New chapter found in %s is: %d\nLink: %s", ficJsonHandler.getFicTitle(ficId),
+                            ficJsonHandler.getChapAmount(ficId) + 1, ficScraper3.nextChapFicLink(ficId)));
                         }
                     }
                 }

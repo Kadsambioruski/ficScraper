@@ -362,7 +362,7 @@ public class FicBot {
                 
                 if (chapterIndex >= 0 && chapterIndex < allChapters.size() + 1) {
                     String chapterName = allChapters.get(chapterIndex);
-                    jsonDeserializer.setFicChapter(selectedFicId, chapterIndex + 1);
+                    ficJsonHandler.setFicChapter(selectedFicId, chapterIndex + 1);
                     event.reply()
                         .withContent("You selected: " + chapterName + " (Chapter " + (chapterIndex + 1) + ")")
                         .subscribe();

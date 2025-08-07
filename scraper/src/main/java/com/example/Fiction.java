@@ -5,13 +5,13 @@ public class Fiction {
     int ficID;
     String title;
     String author;
-    String chapAmount;
+    int chapAmount;
     String description;
 
 
     public Fiction(){}
 
-    public Fiction(String ficLink, int ficID, String title, String author, String chapAmount, String description) {
+    public Fiction(String ficLink, int ficID, String title, String author, int chapAmount, String description) {
         this.ficLink = ficLink;
         this.ficID = ficID;
         this.title = title;
@@ -36,13 +36,18 @@ public class Fiction {
         return this.author;
     }
 
-    public String getChapAmount() {
+    public int getChapAmount() {
         return this.chapAmount;
+    }
+    
+    public void setChapAmount(int chapter) {
+        this.chapAmount = chapter;
     }
 
     public String getDescription() {
         return this.description;
     }
+
 
 
 }

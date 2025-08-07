@@ -59,7 +59,7 @@ public class FicScraper {
             
             String title = titleAndAuthorContainer.select("h1").text();
             String author = titleAndAuthorContainer.select("h4 > span > a").text();
-            String chapterAmount = document.select("div.portlet.light > div.portlet-title > div.actions > span").text();
+            int chapterAmount = Integer.parseInt(document.select("div.portlet.light > div.portlet-title > div.actions > span").text());
 
             System.out.println("===============================================");
             System.out.println("Title: " + title);
@@ -112,7 +112,7 @@ public class FicScraper {
     public boolean checkUpdatedChap(int ficID){
         Fiction fic = ficJsonHandler.getFic(ficID);
 
-        int savedChapCount = Integer.parseInt(fic.getChapAmount()); 
+        int savedChapCount = fic.getChapAmount(); 
         int currentChapCount = Integer.parseInt(searchForChap(fic.getFicLink()));
         if (savedChapCount < currentChapCount) {
             updatedFics.add(ficID);
@@ -156,7 +156,7 @@ public class FicScraper {
         String chapterLink = null;
         try {
             Fiction fiction = ficJsonHandler.getFic(ficId);
-            int chapAmount = Integer.parseInt(fiction.getChapAmount());
+            int chapAmount = fiction.getChapAmount();
             allChapterLinks = getAllChapterLinks(ficId);
 
             
