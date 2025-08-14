@@ -1,8 +1,9 @@
 package com.example;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,11 +13,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class JsonDeserializer {
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private static final String FILEPATH = "scraper\\src\\main\\java\\com\\example\\data\\fics.json";
-    public JsonDeserializer(){}
+    private final Path jsonPath;
+    public JsonDeserializer(){
+        this.jsonPath = Paths.get(System.getProperty("user.dir"), "data", "fics.json");
+    }
 
     public JsonNode readJsonFile() {
-        try (FileInputStream fileInputStream = new FileInputStream(new File(FILEPATH))) { // Translates the text to UTF_8
+        try (FileInputStream fileInputStream = new FileInputStream(jsonPath.toFile())) { // Translates the text to UTF_8
             return objectMapper.readTree(fileInputStream);
             
         } catch (IOException e) {

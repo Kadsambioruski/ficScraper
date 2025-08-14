@@ -1,8 +1,9 @@
 package com.example;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -13,11 +14,12 @@ public class FicJsonHandler {
     private final JsonSerializer jsonSerializer;
     private final JsonDeserializer jsonDeserializer;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private static final String FILEPATH = "scraper\\src\\main\\java\\com\\example\\data\\fics.json";
+    private final Path jsonPath;
 
     public FicJsonHandler() {
         this.jsonSerializer = new JsonSerializer();
         this.jsonDeserializer = new JsonDeserializer();
+        this.jsonPath = Paths.get(System.getProperty("user.dir"), "data", "fics.json");
     }
 
     public void addFic(Fiction newFic) {
@@ -52,13 +54,12 @@ public class FicJsonHandler {
                     }
                 }
                 if (found) {
-                    try (FileOutputStream fileOutputStream = new FileOutputStream(new File(FILEPATH))) {
+                    try (FileOutputStream fileOutputStream = new FileOutputStream(jsonPath.toFile())) {
                     
                         objectMapper.writerWithDefaultPrettyPrinter().writeValue(fileOutputStream, rootNode);
                         
                     } catch (IOException e){
                         e.printStackTrace();
-                        returnStatement = "An error occured while updating file";
                     }
                     returnStatement = "Chapter amount succesfully updated to: " + chapter;
                 } else {

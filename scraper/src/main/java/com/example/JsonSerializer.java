@@ -3,27 +3,32 @@ package com.example;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
 public class JsonSerializer {
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Path jsonPath;
 
-    public JsonSerializer(){}
+    public JsonSerializer(){
+        this.jsonPath = Paths.get(System.getProperty("user.dir"), "data", "fics.json");
+        System.out.println("JSON file path: " + jsonPath.toAbsolutePath());
+    }
     
     
-    public void saveFicToJson(Fiction fiction) { 
-        String filePath = "scraper\\src\\main\\java\\com\\example\\data\\fics.json";
-        
+    public void saveFicToJson(Fiction fiction) {         
         try {
             // Read existing data from the file
             FictionList listOfFictions;
-            File file = new File(filePath);
+            File file = jsonPath.toFile();
+
             if (file.exists() && file.length() != 0) {
-                FileReader fileReader = new FileReader(file);
-                listOfFictions = objectMapper.readValue(fileReader, FictionList.class);
-                fileReader.close();
+                try (FileReader fileReader = new FileReader(file)) {
+                    listOfFictions = objectMapper.readValue(fileReader, FictionList.class);
+                }
             } else {
                 listOfFictions = new FictionList();
             }
@@ -32,13 +37,14 @@ public class JsonSerializer {
             listOfFictions.addFiction(fiction);
             
             // Write the updated list back to the file
-            FileWriter fileWriter = new FileWriter(filePath);
-            ObjectWriter objectWriter = objectMapper.writerWithDefaultPrettyPrinter();
+            try (FileWriter fileWriter = new FileWriter(file);) {
+                ObjectWriter objectWriter = objectMapper.writerWithDefaultPrettyPrinter();
+                objectWriter.writeValue(fileWriter, listOfFictions);
+            }
+            
+            
 
-            objectWriter.writeValue(fileWriter, listOfFictions);
-            fileWriter.close();
-
-            System.out.println("New data appended and saved to file: " + filePath);
+            System.out.println("New data appended and saved to file: " + jsonPath);
         } catch (Exception e) {
             //TODO could add runtimeexception to break process if something happens during serialization
             e.printStackTrace();
