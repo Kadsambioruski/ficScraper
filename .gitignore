@@ -15,7 +15,7 @@ buildNumber.properties
 .mvn/wrapper/maven-wrapper.jar
 
 # Personal data folder
-scraper/src/main/java/com/example/data/fics.json
+data/fics.json
 personalUse.md
 
 # Eclipse m2e generated files

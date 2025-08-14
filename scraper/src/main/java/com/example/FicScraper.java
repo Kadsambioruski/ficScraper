@@ -94,7 +94,7 @@ public class FicScraper {
             String parsedOutput = output.split(" ")[0];
             return parsedOutput;
         } catch (IOException e) {
-            // TODO: handle exception
+            e.printStackTrace();
 
         }
         return output;
@@ -145,14 +145,14 @@ public class FicScraper {
             .map(chapter -> chapter.attr("data-url"))
             .collect(Collectors.toList());
         } catch (IOException e) {
-            // TODO: handle exception
+            e.printStackTrace();
         }
         return allChapterLinks;
     }
     
     public String nextChapFicLink(int ficId) {
         //Go through the list of links until it reaches chapAmount + 1 and return that link
-        List<String> allChapterLinks = null;
+        List<String> allChapterLinks;
         String chapterLink = null;
         try {
             Fiction fiction = ficJsonHandler.getFic(ficId);
@@ -168,7 +168,7 @@ public class FicScraper {
             }
             
         } catch (Exception e) {
-            // TODO: handle exception
+            e.printStackTrace();
         }
         return chapterLink;
     }
@@ -185,7 +185,7 @@ public class FicScraper {
                 .map(chapter -> chapter.select("a").first().text())
                 .collect(Collectors.toList());
         } catch (Exception e) {
-            // TODO: handle exception
+            e.printStackTrace();
         }
         return allChapterNames;
     }
