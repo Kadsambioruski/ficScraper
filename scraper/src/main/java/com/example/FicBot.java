@@ -1,46 +1,246 @@
 package com.example;
-import java.util.ArrayList;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClient;
 import discord4j.core.GatewayDiscordClient;
-import discord4j.core.event.domain.interaction.ButtonInteractionEvent;
 import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
-import discord4j.core.event.domain.interaction.SelectMenuInteractionEvent;
 import discord4j.core.object.command.ApplicationCommandInteractionOption;
 import discord4j.core.object.command.ApplicationCommandInteractionOptionValue;
 import discord4j.core.object.command.ApplicationCommandOption;
 import discord4j.core.object.component.ActionRow;
-import discord4j.core.object.component.Button;
 import discord4j.core.object.component.SelectMenu;
-import discord4j.core.object.entity.Message;
 import discord4j.core.object.entity.channel.MessageChannel;
-import discord4j.core.spec.MessageCreateSpec;
-import discord4j.core.spec.MessageEditSpec;
 import discord4j.discordjson.json.ApplicationCommandData;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import discord4j.discordjson.json.ApplicationCommandRequest;
+import io.github.cdimascio.dotenv.Dotenv;
 import reactor.core.publisher.Mono;
 
+
 public class FicBot {
-    private static Message existingMessage = null;
+    final private static Dotenv dotEnv = Dotenv.configure().directory("scraper").load();
+    private final String token;
+    final private static String DISCORD_SERVER_ID = dotEnv.get("DISCORD_SERVER_ID");
+    final private static String DISCORD_CHANNEL_ID = dotEnv.get("DISCORD_CHANNEL_ID"); 
     private static final FicJsonHandler ficJsonHandler = new FicJsonHandler();
+    private final InteractionManager interactionManager;
+
+    private GatewayDiscordClient client;
+    private static volatile boolean runLoop;
+    private static volatile Thread loopThread;
+    
+    public FicBot(String token) {
+        this.token = token;
+        this.interactionManager = new InteractionManager();
+
+    }
+    
     public static GatewayDiscordClient login(String token) {
         return DiscordClient.create(token).login().block();
     }
+ 
+    public void start() {
+        client = login(token);
+        registerCommands(client).subscribe();
+        interactionManager.registerListeners(client);
+    }
+    
+    public void receiveDiscCommand(GatewayDiscordClient gateway){
+        gateway.on(ChatInputInteractionEvent.class)
+            .flatMap(event -> {
+                switch (event.getCommandName()) {
+                    case "read": return handleReadCommand(event);
+                    case "endloop": return handleEndLoopCommand(event);
+                    case "startloop": return handleStartLoopCommand(event);
+                    case "add": return handleAddFicCommand(event);
+                    default: return Mono.empty();
+                }
+            })
+            .onErrorResume(err -> {
+                err.printStackTrace();
+                return Mono.empty();
+            })
+            .then(gateway.onDisconnect()) // Chaining with the disconnect operation
+            .block(); // Block until completion
+    }
+
+    public static Mono<Void> handleReadCommand(ChatInputInteractionEvent event) {
+        List<Fiction> allUpdatedFics = FicScraper.getUpdatedFics();
+
+        if (allUpdatedFics.isEmpty()) {
+            return event.reply("No fictions with a new chapter have been found. (This command only shows updated fics)").then();
+        }
+
+        SelectMenu ficSelectMenu = createFicSelectMenu(allUpdatedFics);
+        ActionRow actionRow = ActionRow.of(ficSelectMenu);
+
+        return event.reply()
+            .withContent("Select the fiction with a new chapter that you have read:")
+            .withComponents(actionRow)
+            .withEphemeral(true);
+            
+    }
+
+    public static Mono<Void> handleAddFicCommand(ChatInputInteractionEvent event) {
+        System.out.println("Interaction Event Details:");
+        System.out.println("Command Name: " + event.getCommandName());
+        System.out.println("Options: " + event.getOptions().toString());
+
+        String ficlink = event.getOption("ficlink")
+            .flatMap(ApplicationCommandInteractionOption::getValue)
+            .map(ApplicationCommandInteractionOptionValue::asString)
+            .orElse("Unknown Fic");
 
 
-    public static void sendMessage(GatewayDiscordClient gateWay, String channelID, String message) {
+
+        System.out.println("Recieved link of fic: " + ficlink);
+        
+        putFicInJson(ficlink);
+        return event.reply(String.format("The fic with the link:" + ficlink + " has been added to the list")).then();
+    }
+
+    public static Mono<Void> handleEndLoopCommand(ChatInputInteractionEvent event) {
+        System.out.println("Interaction Event Details:");
+        System.out.println("Command Name: " + event.getCommandName());
+        return event.deferReply()
+            .then(Mono.fromRunnable(() -> {
+                runLoop = false;
+                if (loopThread != null || loopThread.isAlive()) {
+                    loopThread.interrupt();
+                    try {
+                        loopThread.join();
+                        System.out.println("Loop thread stopped");
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        System.out.println("Interrupted while stopping loop thread");
+                    }
+                } else {
+                    System.out.println("Loop thread was not running");
+                }
+            }))
+            .then(event.createFollowup("The loop has now ended!").then());
+    }
+
+    public static Mono<Void> handleStartLoopCommand(ChatInputInteractionEvent event) {
+        runLoop = true;
+
+        System.out.println("Interaction Event Details:");
+        System.out.println("Command Name: " + event.getCommandName());
+
+        return event.deferReply()
+            .then(Mono.fromRunnable(() -> {
+                if (loopThread == null || !loopThread.isAlive()) {
+                    runLoop = true;
+                    GatewayDiscordClient client = event.getClient();
+                    loopThread = new Thread(() -> scrapeFicLoop(client));
+                    loopThread.start();
+                    System.out.println("Loop thread started");
+                } else {
+                    System.out.println("Loop thread already running");
+                }
+            }))
+            .then(Mono.defer(() -> {
+                if (loopThread != null && loopThread.isAlive()) {
+                    return event.createFollowup("The loop has now started!").then();
+                } else {
+                    return event.createFollowup("The loop was already running!").then();
+                }
+            }));
+    }
+
+    public static void putFicInJson(String newLinkToFic){
+        System.out.println("Put in link to new fic: ");
+        // TODO parse through input to check link format
+        FicScraper ficScraper = new FicScraper();
+        Fiction newFic = ficScraper.ficInformation(newLinkToFic);
+        
+        ficJsonHandler.addFic(newFic);
+        
+        System.out.println("Fic added to JSON file: " + newFic);
+    }
+    
+    public static void scrapeFicLoop(GatewayDiscordClient gateWay){
+        FicScraper ficScraper = new FicScraper();
+        final Duration interval = Duration.ofHours(3);
+        LocalDateTime nextTime = LocalDateTime.now().withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime startTime = LocalDateTime.now();
+        System.out.println("Loop has started!");
+        Map<Integer, Integer> lastSeenChapters = new HashMap<>();
+        
+        
+        while (runLoop) {
+            LocalDateTime now = LocalDateTime.now();
+            if(now.isBefore(nextTime)) {
+                long sleepMillis = Duration.between(now, nextTime).toMillis();
+                try {
+                    Thread.sleep(sleepMillis);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                continue;
+            }
+
+            nextTime = nextTime.plus(interval);
+
+            List<Fiction> allFictions = ficJsonHandler.getAllFics();
+            try {
+                for (Fiction fiction : allFictions) {
+                    int ficId = fiction.getFicID();
+    
+                    int latestChapter = Integer.parseInt(ficScraper.searchForChap(fiction.getFicLink()));
+                    
+                    if (ficScraper.checkUpdatedChap(ficId)) {
+                        if (!lastSeenChapters.containsKey(ficId)|| lastSeenChapters.get(ficId) < latestChapter) {
+                            lastSeenChapters.put(ficId, latestChapter);
+                            
+                            String message = String.format("New chapter found! New chapter found in %s is: %d\nLink: %s", 
+                                    ficJsonHandler.getFicTitle(ficId),
+                                    ficJsonHandler.getChapAmount(ficId) + 1, 
+                                    ficScraper.nextChapFicLink(ficId));
+
+                            sendMessage(gateWay, DISCORD_CHANNEL_ID, message).subscribe();
+                        }
+                    }
+                }
+            } catch (NumberFormatException e) {
+                System.err.println("Error during scraping loop: " + e.getMessage());
+            }
+            
+           
+        }
+        LocalDateTime endTime = LocalDateTime.now();
+        long totalTime = startTime.until(endTime, ChronoUnit.HOURS);
+        System.out.println("Uptime of loop: " + totalTime + "hours.");
+    }
+
+
+    public Mono<Void> registerCommands(GatewayDiscordClient gateway) {
+        long applicationId = gateway.getRestClient().getApplicationId().block();
+
+        Mono<ApplicationCommandData> readCommand = FicBot.registerReadCommand(gateway, DISCORD_SERVER_ID,  applicationId);
+        Mono<ApplicationCommandData> endLoopCommand = FicBot.registerEndLoopCommand(gateway, DISCORD_SERVER_ID, applicationId);
+        Mono<ApplicationCommandData> startLoopCommand = FicBot.registerStartLoopCommand(gateway, DISCORD_SERVER_ID, applicationId);
+        Mono<ApplicationCommandData> addFicCommand = FicBot.registerAddFicCommand(gateway, DISCORD_SERVER_ID, applicationId);
+
+        return Mono.when(readCommand, endLoopCommand, startLoopCommand, addFicCommand)
+                .doOnSuccess(_ -> System.out.println("Commands registered successfully"))
+                .then(sendMessage(gateway, DISCORD_CHANNEL_ID, "Bot is now ready and online!"));
+    }
+
+    public static Mono<Void> sendMessage(GatewayDiscordClient gateWay, String channelID, String message) {
         Snowflake channelId = Snowflake.of(channelID);
 
-        gateWay.getChannelById(channelId)
+        return gateWay.getChannelById(channelId)
             .ofType(MessageChannel.class)
             .flatMap(channel -> channel.createMessage(message))
-            .then().block();
+            .then();
     }
 
     public static Mono<ApplicationCommandData> registerReadCommand(GatewayDiscordClient gateway, String guildIdString, long applicationId) {
@@ -129,268 +329,7 @@ public class FicBot {
                 });
     }
 
-    public static Mono<Void> handleReadCommand(ChatInputInteractionEvent event) {
-        List<Fiction> allUpdatedFics = FicScraper.getUpdatedFics();
-
-        if (allUpdatedFics.isEmpty()) {
-            return event.reply("No fictions with a new chapter have been found. (This command only shows updated fics)").then();
-        }
-
-        SelectMenu ficSelectMenu = createFicSelectMenu(allUpdatedFics);
-        ActionRow actionRow = ActionRow.of(ficSelectMenu);
-
-        return event.reply()
-            .withContent("Select the fiction with a new chapter that you have read:")
-            .withComponents(actionRow)
-            .withEphemeral(true);
-            
-    }
-
-    public static Mono<Void> handleAddFicCommand(ChatInputInteractionEvent event) {
-        System.out.println("Interaction Event Details:");
-        System.out.println("Command Name: " + event.getCommandName());
-        System.out.println("Options: " + event.getOptions().toString());
-
-        String ficlink = event.getOption("ficlink")
-            .flatMap(ApplicationCommandInteractionOption::getValue)
-            .map(ApplicationCommandInteractionOptionValue::asString)
-            .orElse("Unknown Fic");
 
 
 
-        System.out.println("Recieved link of fic: " + ficlink);
-        
-        Main.putFicInJson(ficlink);
-        return event.reply(String.format("The fic with the link:" + ficlink + " has been added to the list")).then();
-    }
-
-    public static Mono<Void> handleEndLoopCommand(ChatInputInteractionEvent event) {
-        System.out.println("Interaction Event Details:");
-        System.out.println("Command Name: " + event.getCommandName());
-        return event.reply(String.format("The loop has now ended!")).then();
-
-    }
-
-    public static Mono<Void> handleStartLoopCommand(ChatInputInteractionEvent event) {
-        System.out.println("Interaction Event Details:");
-        System.out.println("Command Name: " + event.getCommandName());
-        return event.reply(String.format("The loop has now started!")).then();
-
-    }
-    
-    public static SelectMenu createChapSelectMenu(List<String> currentPageChapters, int ficId, int pageOffset) {
-        List<SelectMenu.Option> options = new ArrayList<>();
-
-        for (int i = 0; i < currentPageChapters.size(); i++) {
-            String chapterName = currentPageChapters.get(i);
-            int globalIndex = pageOffset + i; // convert to absolute index
-            options.add(SelectMenu.Option.of(chapterName, ficId + ":" + globalIndex)); 
-        }
-
-        return SelectMenu.of("chapList", options);
-    }
-
-    
-
-    public static MessageCreateSpec createPaginatedMenuCreateSpec(int ficId, List<String> chapterNames, int page) {
-        int pageSize = 25;
-        int totalPages = (int) Math.ceil((double) chapterNames.size() / pageSize);
-
-        List<String> currentPageChapters = chapterNames.stream()
-            .skip(page * pageSize)
-            .limit(pageSize)
-            .collect(Collectors.toList());
-
-        Fiction fiction = ficJsonHandler.getFic(ficId);
-        String ficTitle = fiction.getTitle();
-
-        SelectMenu selectMenu = createChapSelectMenu(currentPageChapters, ficId, page * pageSize);
-        ActionRow selectMenuRow = ActionRow.of(selectMenu);
-        ActionRow navigationRow = createNavigationButtons(ficId, page, totalPages);
-
-        return MessageCreateSpec.builder()
-            .content(String.format("Choose the chapter that you have read for '%s'(ID: %d):\nPage %d of %d",
-                    ficTitle, ficId, page + 1, totalPages))
-            .addComponent(selectMenuRow)
-            .addComponent(navigationRow)
-            .build();
-    }
-
-
-    public static MessageEditSpec createPaginatedMenuEditSpec(int ficId, List<String> chapterNames, int page) {
-        int pageSize = 25;
-        int totalPages = (int) Math.ceil((double) chapterNames.size() / pageSize);
-
-        List<String> currentPageChapters = chapterNames.stream()
-            .skip(page * pageSize)
-            .limit(pageSize)
-            .collect(Collectors.toList());
-
-        Fiction fiction = ficJsonHandler.getFic(ficId);
-        String ficTitle = fiction.getTitle();
-
-            SelectMenu selectMenu = createChapSelectMenu(currentPageChapters, ficId, page * pageSize);
-        ActionRow selectMenuRow = ActionRow.of(selectMenu);
-        ActionRow navigationRow = createNavigationButtons(ficId, page, totalPages);
-
-        return MessageEditSpec.builder()
-            .content(String.format("Choose the chapter that you have read for '%s'(ID: %d):\nPage %d of %d",
-                    ficTitle, ficId, page + 1, totalPages))
-            .addComponent(selectMenuRow)
-            .addComponent(navigationRow)
-            .build();
-    }
-
-    public static Mono<Void> sendPaginatedMenu(GatewayDiscordClient gateway, String channelId, int ficId, List<String> chapterNames, int page) {
-        Snowflake channelSnowflake = Snowflake.of(channelId);
-
-        return gateway.getChannelById(channelSnowflake)
-            .ofType(MessageChannel.class)
-            .flatMap(channel -> {
-                if (existingMessage == null) {
-                    MessageCreateSpec createSpec = createPaginatedMenuCreateSpec(ficId, chapterNames, page);
-                    return channel.createMessage(createSpec)
-                        .doOnNext(message -> existingMessage = message)
-                        .then();
-                } else {
-                    // Optionally check if the existing message is for a different fic, then recreate it:
-                    String content = existingMessage.getContent();
-                    if (content == null || !content.contains("(ID: " + ficId + ")")) {
-                        MessageCreateSpec createSpec = createPaginatedMenuCreateSpec(ficId, chapterNames, page);
-                        return channel.createMessage(createSpec)
-                            .doOnNext(message -> existingMessage = message)
-                            .then();
-                    }
-                    // Otherwise edit the existing message
-                    MessageEditSpec editSpec = createPaginatedMenuEditSpec(ficId, chapterNames, page);
-                    return existingMessage.edit(editSpec).then();
-                }
-            });
-    }    
-
-    public static ActionRow createNavigationButtons(int ficId, int currentPage, int totalPages) {
-        boolean isFirstPage = currentPage == 0;
-        boolean isLastPage = currentPage == totalPages - 1;
-
-        Button firstButton = Button.primary("first_page:" + ficId + ":" + currentPage, "First").disabled(isFirstPage);
-        Button prevButton = Button.primary("prev_page:" + ficId + ":" + currentPage, "Previous").disabled(isFirstPage);
-        Button nextButton = Button.primary("next_page:" + ficId + ":" + currentPage, "Next").disabled(isLastPage);
-        Button lastButton = Button.primary("last_page:" + ficId + ":" + currentPage, "Last").disabled(isLastPage);
-
-        return ActionRow.of(firstButton, prevButton, nextButton, lastButton);
-    }
-
-    public static void handleButtonInteractions(GatewayDiscordClient gateway) {
-        gateway.on(ButtonInteractionEvent.class).subscribe(event -> {
-            String customId = event.getCustomId();
-            String channelId = event.getInteraction().getChannelId().asString();
-            FicScraper ficScraper = new FicScraper();
-    
-            // Extract the fic name and current page from the message content
-            String[] parts = customId.split(":");
-            String action = parts[0];  // first_page, prev_page, etc.
-            int ficId = Integer.parseInt(parts[1]);
-            int currentPage = Integer.parseInt(parts[2]);
-            List<String> chapters = ficScraper.getAllChapterNames(ficId);
-    
-            int newPage;
-            switch (action) {
-                case "first_page": newPage = 0; break;
-                case "prev_page": newPage = currentPage - 1; break;
-                case "next_page": newPage = currentPage + 1; break;
-                case "last_page": newPage = (int) Math.ceil((double) chapters.size() / 25) - 1; break;
-                default: return;                                   
-            }    
-    
-            // Send the updated paginated menu
-            sendPaginatedMenu(gateway, channelId, ficId, chapters, newPage).subscribe();
-    
-            // Acknowledge the interaction
-            event.acknowledge().subscribe();
-        });
-    }
-
-
-
-    public static void handleSelectMenuInteractions(GatewayDiscordClient discordClient) {
-        JsonDeserializer jsonDeserializer = new JsonDeserializer();
-        FicScraper ficScraper = new FicScraper();
-
-        discordClient.on(SelectMenuInteractionEvent.class).subscribe(event -> {
-            String customId = event.getCustomId();
-            if (customId.equals("ficList")) {
-                String selectedValue = event.getValues().get(0); // Get the selected value
-                int ficId = Integer.parseInt(selectedValue);
-                
-                Fiction fiction = ficJsonHandler.getFic(ficId);
-                List<String> allChapters = ficScraper.getAllChapterNames(ficId);
-                
-                if (allChapters == null || allChapters.isEmpty()) {
-                    event.reply()
-                    .withContent("⚠ Could not retrieve chapters for `" + fiction.getTitle() + "`. Please try again later.")
-                    .subscribe();
-                    return; // Stop execution to prevent NPE
-                }
-
-                FicScraper.clearFicUpdate(ficId);
-
-                sendPaginatedMenu(discordClient, 
-                    event.getInteraction().getChannelId().asString(), 
-                    ficId, 
-                    allChapters, 0
-                ).subscribe();
-
-
-                event.acknowledge().subscribe();
-
-            } else if (customId.equals("chapList")) {
-                String selectedValue = event.getValues().get(0); // now "ficId:chapterIndex"
-                String[] parts = selectedValue.split(":");
-                int selectedFicId = Integer.parseInt(parts[0]);
-                int chapterIndex = Integer.parseInt(parts[1]);
-                
-                String ficName = ficJsonHandler.getFic(selectedFicId).getTitle();
-
-                List<String> allChapters = ficScraper.getAllChapterNames(selectedFicId);  
-                if (allChapters == null || allChapters.isEmpty()) {
-                    event.reply()
-                        .withContent("⚠ Could not retrieve chapters for `" + ficName + "`. Please try again later.")
-                        .subscribe();
-                    return; // Prevents NPE
-                }
-                
-                
-                if (chapterIndex >= 0 && chapterIndex < allChapters.size() + 1) {
-                    String chapterName = allChapters.get(chapterIndex);
-                    ficJsonHandler.setFicChapter(selectedFicId, chapterIndex + 1);
-                    event.reply()
-                        .withContent("You selected: " + chapterName + " (Chapter " + (chapterIndex + 1) + ")")
-                        .subscribe();
-                } else {
-                    event.reply().withContent("Selected chapter not found in the list").subscribe();
-                }
-            }
-        });
-    }
-    
-
-    public static int processChapter(String chapterTitle) {
-        Pattern pattern = Pattern.compile("\\d+");
-        Matcher matcher = pattern.matcher(chapterTitle);
-        int chapterNumber = 0;
-
-        if (matcher.find()) {
-            String chapterString = matcher.group();
-            try {
-                int chapter = Integer.parseInt(chapterString);
-                chapterNumber = chapter;
-                System.out.println("This is the chapter number: " + chapter);
-            } catch (NumberFormatException e) {
-                System.err.println("Error: " + e.getMessage());
-            }
-        } else {
-            System.err.println("No chapter number found in the string: " + chapterTitle);
-        }
-        return chapterNumber;
-    }
 }
