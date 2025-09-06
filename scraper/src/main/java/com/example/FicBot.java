@@ -13,7 +13,6 @@ import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
 import discord4j.core.object.command.ApplicationCommandInteractionOption;
 import discord4j.core.object.command.ApplicationCommandInteractionOptionValue;
 import discord4j.core.object.command.ApplicationCommandOption;
-import discord4j.core.object.component.ActionRow;
 import discord4j.core.object.component.SelectMenu;
 import discord4j.core.object.entity.channel.MessageChannel;
 import discord4j.discordjson.json.ApplicationCommandData;
@@ -56,6 +55,7 @@ public class FicBot {
             .flatMap(event -> {
                 switch (event.getCommandName()) {
                     case "read": return handleReadCommand(event);
+                    case "finish": return handleFinishFicCommand(event);
                     case "endloop": return handleEndLoopCommand(event);
                     case "startloop": return handleStartLoopCommand(event);
                     case "add": return handleAddFicCommand(event);
@@ -77,14 +77,17 @@ public class FicBot {
             return event.reply("No fictions with a new chapter have been found. (This command only shows updated fics)").then();
         }
 
-        SelectMenu ficSelectMenu = createFicSelectMenu(allUpdatedFics);
-        ActionRow actionRow = ActionRow.of(ficSelectMenu);
-
-        return event.reply()
-            .withContent("Select the fiction with a new chapter that you have read:")
-            .withComponents(actionRow)
-            .withEphemeral(true);
-            
+        return event.acknowledge().then(InteractionManager.sendPaginatedMenu(
+            event.getClient(),
+            event.getInteraction().getChannelId().asString(),
+            allUpdatedFics,
+            0, // start at page 0
+            "Select the fiction with a new chapter that you have read:",
+            "ficList", // customId for finishing fics
+            fic -> fic.getTitle(), // display name
+            fic -> String.valueOf(fic.getFicID()), // value sent on selection
+            0
+        ));
     }
 
     public static Mono<Void> handleAddFicCommand(ChatInputInteractionEvent event) {
@@ -103,6 +106,42 @@ public class FicBot {
         
         putFicInJson(ficlink);
         return event.reply(String.format("The fic with the link:" + ficlink + " has been added to the list")).then();
+    }
+
+    public static Mono<Void> handleFinishFicCommand(ChatInputInteractionEvent event) {
+        List<Fiction> allFics = ficJsonHandler.getAllFics();
+
+        return event.acknowledge().then(InteractionManager.sendPaginatedMenu(
+            event.getClient(),
+            event.getInteraction().getChannelId().asString(),
+            allFics,
+            0, // start at page 0
+            "Select the fiction that you have finished:",
+            "finishFic", // customId for finishing fics
+            fic -> fic.getTitle(), // display name
+            fic -> String.valueOf(fic.getFicID()), // value sent on selection
+            0
+        ));
+    }
+        
+    public static SelectMenu createFicSelectMenu(List<Fiction> allFics) {
+    
+        List<SelectMenu.Option> options = allFics.stream()
+            .limit(25)
+            .map(fiction -> SelectMenu.Option.of(fiction.getTitle(), ""+ fiction.getFicID()))
+            .toList();
+
+        return SelectMenu.of("ficList", options).withPlaceholder("Select a fiction");
+    }
+
+    public static SelectMenu createFinishFicSelectMenu(List<Fiction> allFics) {
+    
+        List<SelectMenu.Option> options = allFics.stream()
+            .limit(25)
+            .map(fiction -> SelectMenu.Option.of(fiction.getTitle(), ""+ fiction.getFicID()))
+            .toList();
+
+        return SelectMenu.of("finishFic", options).withPlaceholder("Select a fiction");
     }
 
     public static Mono<Void> handleEndLoopCommand(ChatInputInteractionEvent event) {
@@ -172,7 +211,7 @@ public class FicBot {
         LocalDateTime startTime = LocalDateTime.now();
         System.out.println("Loop has started!");
         Map<Integer, Integer> lastSeenChapters = new HashMap<>();
-        
+        String message;
         
         while (runLoop) {
             LocalDateTime now = LocalDateTime.now();
@@ -196,16 +235,21 @@ public class FicBot {
     
                     int latestChapter = Integer.parseInt(ficScraper.searchForChap(fiction.getFicLink()));
                     
+                    if (ficScraper.checkIfStubbed(gateWay, ficId)) {
+                        message = String.format("Seems like %s has been STUBBED! New latest chapter amount is: %d. Updating fiction to the new latest chapter!", fiction.getTitle(), latestChapter);
+                        fiction.setChapAmount(latestChapter);
+                        sendMessage(gateWay, message).subscribe();
+                    }
                     if (ficScraper.checkUpdatedChap(ficId)) {
-                        if (!lastSeenChapters.containsKey(ficId)|| lastSeenChapters.get(ficId) < latestChapter) {
+                        if (!lastSeenChapters.containsKey(ficId)) {
                             lastSeenChapters.put(ficId, latestChapter);
                             
-                            String message = String.format("New chapter found! New chapter found in %s is: %d\nLink: %s", 
+                            message = String.format("New chapter found! New chapter found in %s is: %d\nLink: %s", 
                                     ficJsonHandler.getFicTitle(ficId),
                                     ficJsonHandler.getChapAmount(ficId) + 1, 
                                     ficScraper.nextChapFicLink(ficId));
 
-                            sendMessage(gateWay, DISCORD_CHANNEL_ID, message).subscribe();
+                            sendMessage(gateWay, message).subscribe();
                         }
                     }
                 }
@@ -225,17 +269,18 @@ public class FicBot {
         long applicationId = gateway.getRestClient().getApplicationId().block();
 
         Mono<ApplicationCommandData> readCommand = FicBot.registerReadCommand(gateway, DISCORD_SERVER_ID,  applicationId);
+        Mono<ApplicationCommandData> finishCommand = FicBot.registerFinishCommand(gateway, DISCORD_SERVER_ID,  applicationId);
         Mono<ApplicationCommandData> endLoopCommand = FicBot.registerEndLoopCommand(gateway, DISCORD_SERVER_ID, applicationId);
         Mono<ApplicationCommandData> startLoopCommand = FicBot.registerStartLoopCommand(gateway, DISCORD_SERVER_ID, applicationId);
         Mono<ApplicationCommandData> addFicCommand = FicBot.registerAddFicCommand(gateway, DISCORD_SERVER_ID, applicationId);
 
-        return Mono.when(readCommand, endLoopCommand, startLoopCommand, addFicCommand)
+        return Mono.when(readCommand, finishCommand, endLoopCommand, startLoopCommand, addFicCommand)
                 .doOnSuccess(_ -> System.out.println("Commands registered successfully"))
-                .then(sendMessage(gateway, DISCORD_CHANNEL_ID, "Bot is now ready and online!"));
+                .then(sendMessage(gateway, "Bot is now ready and online!"));
     }
 
-    public static Mono<Void> sendMessage(GatewayDiscordClient gateWay, String channelID, String message) {
-        Snowflake channelId = Snowflake.of(channelID);
+    public static Mono<Void> sendMessage(GatewayDiscordClient gateWay, String message) {
+        Snowflake channelId = Snowflake.of(DISCORD_CHANNEL_ID);
 
         return gateWay.getChannelById(channelId)
             .ofType(MessageChannel.class)
@@ -260,16 +305,24 @@ public class FicBot {
                 });
     }
 
-    
-    public static SelectMenu createFicSelectMenu(List<Fiction> allFics) {
-    
-        List<SelectMenu.Option> options = allFics.stream()
-            .limit(25)
-            .map(fiction -> SelectMenu.Option.of(fiction.getTitle(), ""+ fiction.getFicID()))
-            .toList();
+    public static Mono<ApplicationCommandData> registerFinishCommand(GatewayDiscordClient gateway, String guildIdString, long applicationId) {
+        long guildId = Long.parseLong(guildIdString);
+        System.out.println("Creating finish command!");
 
-        return SelectMenu.of("ficList", options).withPlaceholder("Select a fiction");
+        ApplicationCommandRequest commandRequest = ApplicationCommandRequest.builder()
+            .name("finish")
+            .description("Tells the bot that you have finished reading the fiction")
+            .build();
+
+            return gateway.getRestClient().getApplicationService()
+                .createGuildApplicationCommand(applicationId, guildId, commandRequest)
+                .onErrorResume(e -> {
+                    e.printStackTrace();
+                    return Mono.empty();
+                });
     }
+
+
 
     public static Mono<ApplicationCommandData> registerAddFicCommand(GatewayDiscordClient gateway, String guildIdString, long applicationId) {
         long guildId = Long.parseLong(guildIdString);
