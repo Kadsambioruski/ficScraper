@@ -19,7 +19,7 @@ public class Main {
             ficBot.start();
         
             ficBot.receiveDiscCommand(DISCORD_CLIENT);
-            ficBot.scrapeFicLoop(DISCORD_CLIENT);
+            FicBot.scrapeFicLoop(DISCORD_CLIENT);
 
         }
 

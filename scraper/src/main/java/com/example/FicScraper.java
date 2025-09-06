@@ -1,7 +1,8 @@
 package com.example;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -15,10 +16,13 @@ import org.jsoup.select.Elements;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import discord4j.core.GatewayDiscordClient;
+
 public class FicScraper {
     private final FicJsonHandler ficJsonHandler; 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final Set<Integer> updatedFics = new HashSet<>();
+    private final Path jsonPath = Paths.get(System.getProperty("user.dir"), "data", "fics.json");
 
 
     public FicScraper(){
@@ -43,11 +47,9 @@ public class FicScraper {
 
     public Fiction ficInformation(String ficUrl) {
         Fiction fic = null;
-        String filePath = "scraper\\src\\main\\java\\com\\example\\data\\fics.json";  
-
         
         try {
-            FileInputStream fileInputStream = new FileInputStream(new File(filePath));
+            FileInputStream fileInputStream = new FileInputStream(jsonPath.toFile());
             
             JsonNode rootNode = objectMapper.readTree(fileInputStream);
                
@@ -59,7 +61,8 @@ public class FicScraper {
             
             String title = titleAndAuthorContainer.select("h1").text();
             String author = titleAndAuthorContainer.select("h4 > span > a").text();
-            int chapterAmount = Integer.parseInt(document.select("div.portlet.light > div.portlet-title > div.actions > span").text());
+            String chapterText = document.select("div.portlet.light > div.portlet-title > div.actions > span").text();
+            int chapterAmount = Integer.parseInt(chapterText.split(" ")[0]);
 
             System.out.println("===============================================");
             System.out.println("Title: " + title);
@@ -119,6 +122,15 @@ public class FicScraper {
             return true;
         }
         return false;
+    }
+
+    public boolean checkIfStubbed(GatewayDiscordClient gateWay, int ficId) {
+        System.out.println("Checking if fiction is stubbed");
+        Fiction fic = ficJsonHandler.getFic(ficId);
+        
+        int savedChapCount = fic.getChapAmount(); 
+        int currentChapCount = Integer.parseInt(searchForChap(fic.getFicLink()));
+        return savedChapCount > currentChapCount;
     }
     
     public static List<Fiction> getUpdatedFics() {
