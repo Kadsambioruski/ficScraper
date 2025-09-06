@@ -1,8 +1,6 @@
 package com.example;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -11,45 +9,74 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 
 public class JsonSerializer {
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final Path jsonPath;
+    private final Path readingFicsPath;
+    private final Path finishedFicsPath;
 
     public JsonSerializer(){
-        this.jsonPath = Paths.get(System.getProperty("user.dir"), "data", "fics.json");
-        System.out.println("JSON file path: " + jsonPath.toAbsolutePath());
+        this.readingFicsPath = Paths.get(System.getProperty("user.dir"), "data", "fics.json");
+        this.finishedFicsPath = Paths.get(System.getProperty("user.dir"), "data", "finishedFics.json");
+        System.out.println("JSON file path: " + readingFicsPath.toAbsolutePath());
     }
     
-    
+    // Make boolean for this method to determine if its going to be saved to the "finished" json file or not
     public void saveFicToJson(Fiction fiction) {         
         try {
             // Read existing data from the file
-            FictionList listOfFictions;
-            File file = jsonPath.toFile();
+            File readingFile = readingFicsPath.toFile();
 
-            if (file.exists() && file.length() != 0) {
-                try (FileReader fileReader = new FileReader(file)) {
-                    listOfFictions = objectMapper.readValue(fileReader, FictionList.class);
-                }
-            } else {
-                listOfFictions = new FictionList();
-            }
+            FictionList readingList = readingFile.exists() && readingFile.length() != 0 
+                ? objectMapper.readValue(readingFile, FictionList.class)
+                : new FictionList(); 
+            
             
             // Append new Fiction to the list
-            listOfFictions.addFiction(fiction);
+            readingList.addFiction(fiction);
             
             // Write the updated list back to the file
-            try (FileWriter fileWriter = new FileWriter(file);) {
-                ObjectWriter objectWriter = objectMapper.writerWithDefaultPrettyPrinter();
-                objectWriter.writeValue(fileWriter, listOfFictions);
-            }
-            
-            
+            ObjectWriter objectWriter = objectMapper.writerWithDefaultPrettyPrinter();
+            objectWriter.writeValue(readingFile, readingList);
 
-            System.out.println("New data appended and saved to file: " + jsonPath);
+            System.out.println("New data appended and saved to file: " + readingFicsPath);
         } catch (Exception e) {
             //TODO could add runtimeexception to break process if something happens during serialization
             e.printStackTrace();
         }
 
+    }
+
+    public void moveFicToFinished(Fiction fiction) {
+        // Read through fictionlist to check that it is actually there, if it is remove it from there and move it to finished with all the information
+        try {
+            // Read existing data from the file
+            File readingFile = readingFicsPath.toFile();
+            File finishedFile = finishedFicsPath.toFile();
+
+            FictionList readingList = readingFile.exists() && readingFile.length() != 0 
+                ? objectMapper.readValue(readingFile, FictionList.class)
+                : new FictionList(); 
+
+            FictionList finishedList = finishedFile.exists() && finishedFile.length() != 0
+                ? objectMapper.readValue(finishedFile, FictionList.class)
+                : new FictionList(); 
+
+                Fiction fictionToMove = readingList.getFiction(fiction.getFicID());
+            if (fictionToMove != null) {
+                readingList.removeFiction(fictionToMove);
+
+                finishedList.addFiction(fictionToMove);
+
+                ObjectWriter objectWriter = objectMapper.writerWithDefaultPrettyPrinter();
+                objectWriter.writeValue(readingFile, readingList);
+                objectWriter.writeValue(finishedFile, finishedList);
+
+                System.out.println("Moved fiction to finished: " + fiction.getTitle() + " ID: " + fiction.getFicID());
+            } else {
+                System.out.println("Fiction not found in reading list: " + fiction.getTitle() + " ID: " + fiction.getFicID());
+            }
+        } catch (Exception e) {
+            //TODO could add runtimeexception to break process if something happens during serialization
+            e.printStackTrace();
+        }
     }
 
 

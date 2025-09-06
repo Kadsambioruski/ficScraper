@@ -26,6 +26,10 @@ public class FicJsonHandler {
         jsonSerializer.saveFicToJson(newFic);
     }
 
+    public void moveFicToFinished(Fiction fiction) {
+        jsonSerializer.moveFicToFinished(fiction);
+    }
+
     public Fiction getFic(int ficId) {
         return jsonDeserializer.getFic(ficId);
     }
