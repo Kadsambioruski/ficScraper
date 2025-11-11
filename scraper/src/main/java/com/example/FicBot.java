@@ -237,7 +237,7 @@ public class FicBot {
                     
                     if (ficScraper.checkIfStubbed(gateWay, ficId)) {
                         message = String.format("Seems like %s has been STUBBED! New latest chapter amount is: %d. Updating fiction to the new latest chapter!", fiction.getTitle(), latestChapter);
-                        fiction.setChapAmount(latestChapter);
+                        ficJsonHandler.setFicChapter(ficId, latestChapter);
                         sendMessage(gateWay, message).subscribe();
                     }
                     if (ficScraper.checkUpdatedChap(ficId)) {
