@@ -28,6 +28,7 @@ public class FicJsonHandler {
 
     public void moveFicToFinished(Fiction fiction) {
         jsonSerializer.moveFicToFinished(fiction);
+        resetFicIds();
     }
 
     public Fiction getFic(int ficId) {
@@ -36,6 +37,16 @@ public class FicJsonHandler {
     
     public List<Fiction> getAllFics() {
        return jsonDeserializer.getAllFics();
+    }
+
+    public void resetFicIds() {
+        List<Fiction> fictions = getAllFics();
+        int i = 0;
+
+        for (Fiction fiction : fictions) {
+            fiction.ficID = i;
+            i++;
+        }
     }
 
     public String setFicChapter(int ficId, int chapter) {
