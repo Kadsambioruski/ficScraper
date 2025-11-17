@@ -6,6 +6,8 @@ import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.jsoup.Jsoup;
@@ -175,6 +177,7 @@ public class FicScraper {
             if (chapAmount < allChapterLinks.size()) {
                 chapterLink = "https://www.royalroad.com" + allChapterLinks.get(chapAmount);
                 System.out.println("Chapter link found: " + chapterLink);
+                getFicWordAmount(ficId);
             } else {
                 System.out.println("Chapter link not found: requested index is out of bounds.");
             }
@@ -183,6 +186,35 @@ public class FicScraper {
             e.printStackTrace();
         }
         return chapterLink;
+    }
+
+    public int getFicWordAmount(int ficId) {
+        Fiction fiction = ficJsonHandler.getFic(ficId);
+        int wordCount = 0;
+        try {
+            Document document = Jsoup.connect(fiction.getFicLink()).get();
+            Element pagesLi = document.selectFirst("ul.list-unstyled li:contains(Pages)");
+
+            if (pagesLi == null) return 0;
+
+            Element iTag = pagesLi.selectFirst("i.popovers");
+            
+            if (iTag == null) return 0; 
+            
+            String dataContent = iTag.attr("data-content");
+            Pattern pattern = Pattern.compile("calculated from ([0-9,]+) words");
+            Matcher matcher = pattern.matcher(dataContent);
+
+            if (matcher.find()) {
+                String wordCountStr = matcher.group(1).replaceAll(",", "");
+                wordCount = Integer.parseInt(wordCountStr);
+            }
+        
+            System.out.printf("Should be the word amount of fic '%s': %s\n",fiction.getTitle(), wordCount);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return wordCount;
     }
 
     public List<String> getAllChapterNames(int ficId) {
