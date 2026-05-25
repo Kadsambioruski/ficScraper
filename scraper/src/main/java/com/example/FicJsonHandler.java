@@ -1,25 +1,14 @@
 package com.example;
-
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class FicJsonHandler {
     private final JsonSerializer jsonSerializer;
     private final JsonDeserializer jsonDeserializer;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final Path jsonPath;
 
     public FicJsonHandler() {
         this.jsonSerializer = new JsonSerializer();
         this.jsonDeserializer = new JsonDeserializer();
-        this.jsonPath = Paths.get(System.getProperty("user.dir"), "data", "fics.json");
     }
 
     public void addFic(Fiction newFic) {
@@ -51,40 +40,13 @@ public class FicJsonHandler {
 
     public String setFicChapter(int ficId, int chapter) {
         Fiction fiction = getFic(ficId);
-        boolean found = false;
         String returnStatement;
-        JsonNode rootNode = jsonDeserializer.readJsonFile();
-        JsonNode fictionsArray = rootNode.path("fictions");
-        
         if (fiction != null) {
-            
+            fiction.setChapAmount(chapter);
+            returnStatement = "Chapter amount succesfully updated to: " + chapter;
+        } else {
+            returnStatement = "Fic with specified name not found";
         }
-
-        if (fictionsArray.isArray()) {
-            for (JsonNode fictionNode : fictionsArray) {
-                if (fictionNode.path("ficID").asInt() == ficId) {
-
-                        ((ObjectNode) fictionNode).put("chapAmount", chapter);
-                        found = true;
-                    }
-                }
-                if (found) {
-                    try (FileOutputStream fileOutputStream = new FileOutputStream(jsonPath.toFile())) {
-                    
-                        objectMapper.writerWithDefaultPrettyPrinter().writeValue(fileOutputStream, rootNode);
-                        
-                    } catch (IOException e){
-                        e.printStackTrace();
-                    }
-                    returnStatement = "Chapter amount succesfully updated to: " + chapter;
-                } else {
-                    returnStatement = "Fic with specified name not found";
-                }
-
-            } else {
-                returnStatement = String.format("ChapAmount not found.");
-            }
-
 
         return returnStatement; 
     }

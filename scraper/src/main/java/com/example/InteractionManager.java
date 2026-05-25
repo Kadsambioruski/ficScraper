@@ -93,7 +93,7 @@ public class InteractionManager {
 
         if (menuType.equals("chapList")) {
             // For chapters
-            return event.acknowledge().then(sendPaginatedMenu(
+            return event.deferReply().then(sendPaginatedMenu(
                 event.getClient(),
                 event.getInteraction().getChannelId().asString(),
                 finalItems,
@@ -106,7 +106,7 @@ public class InteractionManager {
             ));
         } else {
             // For fictions
-            return event.acknowledge().then(sendPaginatedMenu(
+            return event.deferReply().then(sendPaginatedMenu(
                 event.getClient(),
                 event.getInteraction().getChannelId().asString(),
                 finalItems,
@@ -186,7 +186,7 @@ public class InteractionManager {
         ActionRow navRow = createNavigationButtons(menuId, page, totalPages, ficId); // you can generalize button IDs too
 
         return MessageEditSpec.builder()
-                .content(String.format("%s\nPage %d of %d", header, page + 1, totalPages))
+                .contentOrNull(String.format("%s\nPage %d of %d", header, page + 1, totalPages))
                 .addComponent(selectRow)
                 .addComponent(navRow)
                 .build();
@@ -207,7 +207,7 @@ public class InteractionManager {
                 
                 if (allChapters == null || allChapters.isEmpty()) {
                     return event.reply()
-                            .withContent("⚠ Could not retrieve chapters for `" + fiction.getTitle() + "`. Please try again later.")
+                            .withContent("Could not retrieve chapters for `" + fiction.getTitle() + "`. Please try again later.")
                             .then();
                 }
                 

@@ -16,6 +16,7 @@ public class Main {
     */     
     public static void main(String[] args) {
         if (DISCORD_CLIENT != null) {
+            System.out.println("MAIN STARTED");
             ficBot.start();
         
             ficBot.receiveDiscCommand(DISCORD_CLIENT);

@@ -23,7 +23,7 @@
         <dependency>
             <groupId>com.discord4j</groupId>
             <artifactId>discord4j-core</artifactId>
-            <version>3.2.6</version>
+            <version>3.3.0</version>
         </dependency>
         <dependency>
             <groupId>io.github.cdimascio</groupId>
@@ -71,7 +71,6 @@
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <!-- Replace with your main class -->
                                     <mainClass>Main.java</mainClass>
                                 </transformer>
                             </transformers>

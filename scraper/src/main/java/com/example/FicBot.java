@@ -77,7 +77,7 @@ public class FicBot {
             return event.reply("No fictions with a new chapter have been found. (This command only shows updated fics)").then();
         }
 
-        return event.acknowledge().then(InteractionManager.sendPaginatedMenu(
+        return event.deferReply().then(InteractionManager.sendPaginatedMenu(
             event.getClient(),
             event.getInteraction().getChannelId().asString(),
             allUpdatedFics,
@@ -111,7 +111,7 @@ public class FicBot {
     public static Mono<Void> handleFinishFicCommand(ChatInputInteractionEvent event) {
         List<Fiction> allFics = ficJsonHandler.getAllFics();
 
-        return event.acknowledge().then(InteractionManager.sendPaginatedMenu(
+        return event.deferReply().then(InteractionManager.sendPaginatedMenu(
             event.getClient(),
             event.getInteraction().getChannelId().asString(),
             allFics,
@@ -150,7 +150,7 @@ public class FicBot {
         return event.deferReply()
             .then(Mono.fromRunnable(() -> {
                 runLoop = false;
-                if (loopThread != null || loopThread.isAlive()) {
+                if (loopThread != null && loopThread.isAlive()) {
                     loopThread.interrupt();
                     try {
                         loopThread.join();
@@ -236,7 +236,7 @@ public class FicBot {
                     int latestChapter = Integer.parseInt(ficScraper.searchForChap(fiction.getFicLink()));
                     
                     if (ficScraper.checkIfStubbed(gateWay, ficId)) {
-                        message = String.format("Seems like %s has been STUBBED! New latest chapter amount is: %d. Updating fiction to the new latest chapter!", fiction.getTitle(), latestChapter);
+                        message = String.format("Seems like %s has been STUBBED! New latest chapter amount is: %d. Updating fiction to the new latest chapter! Here is the link: %s", fiction.getTitle(), latestChapter, ficScraper.nextChapFicLink(ficId));
                         ficJsonHandler.setFicChapter(ficId, latestChapter);
                         sendMessage(gateWay, message).subscribe();
                     }

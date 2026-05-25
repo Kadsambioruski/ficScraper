@@ -2,7 +2,6 @@ package com.example;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -10,7 +9,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -22,9 +20,9 @@ import discord4j.core.GatewayDiscordClient;
 
 public class FicScraper {
     private final FicJsonHandler ficJsonHandler; 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = Config.objectMapper();
     private static final Set<Integer> updatedFics = new HashSet<>();
-    private final Path jsonPath = Paths.get(System.getProperty("user.dir"), "data", "fics.json");
+    private final Path jsonPath = Config.ficsJsonPath();
 
 
     public FicScraper(){
@@ -38,7 +36,7 @@ public class FicScraper {
         Elements wrapper = new Elements();
     
         try {
-            Document document = Jsoup.connect(ficUrl).get();
+            Document document = Config.fetch(ficUrl);
             wrapper = document.select(".mt-list-container.no-border.list-news.ext-1");
         } catch (IOException e) {
             e.printStackTrace();
@@ -50,15 +48,14 @@ public class FicScraper {
     public Fiction ficInformation(String ficUrl) {
         Fiction fic = null;
         
-        try {
-            FileInputStream fileInputStream = new FileInputStream(jsonPath.toFile());
+        try (FileInputStream fileInputStream = new FileInputStream(jsonPath.toFile())){
             
             JsonNode rootNode = objectMapper.readTree(fileInputStream);
                
             JsonNode fictionsArray = rootNode.path("fictions");
             int ficID = fictionsArray.size() + 1;
 
-            Document document = Jsoup.connect(ficUrl).get();
+            Document document = Config.fetch(ficUrl);
             Elements titleAndAuthorContainer = document.select(".col");
             
             String title = titleAndAuthorContainer.select("h1").text();
@@ -70,16 +67,15 @@ public class FicScraper {
             System.out.println("Title: " + title);
             System.out.println("Author: " + author);
             System.out.println("chapAmount: " + chapterAmount);
-
-            String description = "";
            
+            StringBuilder descriptionBuilder = new StringBuilder();
             Elements descContainer = document.select("div.description");
             for (Element text : descContainer.select("div.hidden-content")) {
                 String paragraph = text.select("p").text();
-                description += paragraph;
+                descriptionBuilder.append(paragraph);
 
             }
-            description = description.trim();
+            String description = descriptionBuilder.toString().trim();
             System.out.println("Description: " + description);
             System.out.println("===============================================");
 
@@ -94,7 +90,7 @@ public class FicScraper {
     public String searchForChap(String ficUrl){
         String output = "";
         try {
-            Document document = Jsoup.connect(ficUrl).get();
+            Document document = Config.fetch(ficUrl);
             output = document.select("div.portlet.light > div.portlet-title > div.actions > span").text();
             String parsedOutput = output.split(" ")[0];
             return parsedOutput;
@@ -127,8 +123,8 @@ public class FicScraper {
     }
 
     public boolean checkIfStubbed(GatewayDiscordClient gateWay, int ficId) {
-        System.out.println("Checking if fiction is stubbed");
         Fiction fic = ficJsonHandler.getFic(ficId);
+        System.out.println("Checking if " + fic.getTitle() + " is stubbed");
         
         int savedChapCount = fic.getChapAmount(); 
         int currentChapCount = Integer.parseInt(searchForChap(fic.getFicLink()));
@@ -151,7 +147,7 @@ public class FicScraper {
         Fiction fiction = ficJsonHandler.getFic(ficId);
         
         try {
-            Document document = Jsoup.connect(fiction.getFicLink()).get();
+            Document document = Config.fetch(fiction.getFicLink());
             Elements allChapters = document.select("table#chapters tbody tr");
             
             allChapterLinks = allChapters
@@ -173,9 +169,14 @@ public class FicScraper {
             int chapAmount = fiction.getChapAmount();
             allChapterLinks = getAllChapterLinks(ficId);
 
-            
-            if (chapAmount < allChapterLinks.size()) {
+            int scrapedChapAmount = allChapterLinks.size(); 
+
+            if (scrapedChapAmount > chapAmount) {
                 chapterLink = "https://www.royalroad.com" + allChapterLinks.get(chapAmount);
+                System.out.println("Chapter link found: " + chapterLink);
+                getFicWordAmount(ficId);
+            } else if (scrapedChapAmount < chapAmount) { 
+                chapterLink = "https://www.royalroad.com" + allChapterLinks.get(scrapedChapAmount - 1);
                 System.out.println("Chapter link found: " + chapterLink);
                 getFicWordAmount(ficId);
             } else {
@@ -192,7 +193,7 @@ public class FicScraper {
         Fiction fiction = ficJsonHandler.getFic(ficId);
         int wordCount = 0;
         try {
-            Document document = Jsoup.connect(fiction.getFicLink()).get();
+            Document document = Config.fetch(fiction.getFicLink());
             Element pagesLi = document.selectFirst("ul.list-unstyled li:contains(Pages)");
 
             if (pagesLi == null) return 0;
@@ -221,7 +222,7 @@ public class FicScraper {
         Fiction fiction = ficJsonHandler.getFic(ficId);
         List<String> allChapterNames = null;
         try {
-            Document document = Jsoup.connect(fiction.getFicLink()).get();
+            Document document = Config.fetch(fiction.getFicLink());
             System.out.println("Here is the ficLink: " + fiction.getFicLink());
             Elements allChapters = document.select("table#chapters tbody tr");
             allChapterNames = allChapters

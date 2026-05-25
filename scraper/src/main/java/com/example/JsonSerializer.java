@@ -1,20 +1,21 @@
 package com.example;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
 public class JsonSerializer {
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = Config.objectMapper();
     private final Path readingFicsPath;
     private final Path finishedFicsPath;
 
     public JsonSerializer(){
-        this.readingFicsPath = Paths.get(System.getProperty("user.dir"), "data", "fics.json");
-        this.finishedFicsPath = Paths.get(System.getProperty("user.dir"), "data", "finishedFics.json");
+        this.readingFicsPath = Config.ficsJsonPath();
+        this.finishedFicsPath = Config.finishedFicsJsonPath();
+
         System.out.println("JSON file path: " + readingFicsPath.toAbsolutePath());
     }
     
@@ -73,7 +74,7 @@ public class JsonSerializer {
             } else {
                 System.out.println("Fiction not found in reading list: " + fiction.getTitle() + " ID: " + fiction.getFicID());
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             //TODO could add runtimeexception to break process if something happens during serialization
             e.printStackTrace();
         }
