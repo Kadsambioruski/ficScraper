@@ -16,8 +16,6 @@ import org.jsoup.select.Elements;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import discord4j.core.GatewayDiscordClient;
-
 public class FicScraper {
     private final FicJsonHandler ficJsonHandler; 
     private final ObjectMapper objectMapper = Config.objectMapper();
@@ -110,25 +108,17 @@ public class FicScraper {
         }
     }
 
-    public boolean checkUpdatedChap(int ficID){
-        Fiction fic = ficJsonHandler.getFic(ficID);
-
-        int savedChapCount = fic.getChapAmount(); 
-        int currentChapCount = Integer.parseInt(searchForChap(fic.getFicLink()));
-        if (savedChapCount < currentChapCount) {
-            updatedFics.add(ficID);
+    public boolean checkUpdatedChap(Fiction fiction, int currentChapCount){
+        if (fiction.getChapAmount() < currentChapCount) {
+            updatedFics.add(fiction.getFicID());
             return true;
         }
         return false;
     }
 
-    public boolean checkIfStubbed(GatewayDiscordClient gateWay, int ficId) {
-        Fiction fic = ficJsonHandler.getFic(ficId);
-        System.out.println("Checking if " + fic.getTitle() + " is stubbed");
-        
-        int savedChapCount = fic.getChapAmount(); 
-        int currentChapCount = Integer.parseInt(searchForChap(fic.getFicLink()));
-        return savedChapCount > currentChapCount;
+    public boolean checkIfStubbed(Fiction fiction, int currentChapCount) {
+        System.out.println("Checking if " + fiction.getTitle() + " is stubbed");
+        return fiction.getChapAmount() > currentChapCount;
     }
     
     public static List<Fiction> getUpdatedFics() {
@@ -160,25 +150,26 @@ public class FicScraper {
         return allChapterLinks;
     }
     
-    public String nextChapFicLink(int ficId) {
+    public String nextChapFicLink(Fiction fiction, Document document) {
         //Go through the list of links until it reaches chapAmount + 1 and return that link
-        List<String> allChapterLinks;
         String chapterLink = null;
         try {
-            Fiction fiction = ficJsonHandler.getFic(ficId);
             int chapAmount = fiction.getChapAmount();
-            allChapterLinks = getAllChapterLinks(ficId);
+            List<String> allChapterLinks = document.select("table#chapters tbody tr")
+                .stream()
+                .map(chapter -> chapter.attr("data-url"))
+                .collect(Collectors.toList());
 
             int scrapedChapAmount = allChapterLinks.size(); 
 
             if (scrapedChapAmount > chapAmount) {
                 chapterLink = "https://www.royalroad.com" + allChapterLinks.get(chapAmount);
                 System.out.println("Chapter link found: " + chapterLink);
-                getFicWordAmount(ficId);
+                getFicWordAmount(fiction, document);
             } else if (scrapedChapAmount < chapAmount) { 
                 chapterLink = "https://www.royalroad.com" + allChapterLinks.get(scrapedChapAmount - 1);
                 System.out.println("Chapter link found: " + chapterLink);
-                getFicWordAmount(ficId);
+                getFicWordAmount(fiction, document);
             } else {
                 System.out.println("Chapter link not found: requested index is out of bounds.");
             }
@@ -189,11 +180,9 @@ public class FicScraper {
         return chapterLink;
     }
 
-    public int getFicWordAmount(int ficId) {
-        Fiction fiction = ficJsonHandler.getFic(ficId);
+    public int getFicWordAmount(Fiction fiction, Document document) {
         int wordCount = 0;
         try {
-            Document document = Config.fetch(fiction.getFicLink());
             Element pagesLi = document.selectFirst("ul.list-unstyled li:contains(Pages)");
 
             if (pagesLi == null) return 0;

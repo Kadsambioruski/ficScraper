@@ -38,8 +38,7 @@ public class FicJsonHandler {
         }
     }
 
-    public String setFicChapter(int ficId, int chapter) {
-        Fiction fiction = getFic(ficId);
+    public String setFicChapter(Fiction fiction, int chapter) {
         String returnStatement;
         if (fiction != null) {
             fiction.setChapAmount(chapter);

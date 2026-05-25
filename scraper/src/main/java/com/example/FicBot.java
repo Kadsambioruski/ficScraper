@@ -1,10 +1,13 @@
 package com.example;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.jsoup.nodes.Document;
 
 import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClient;
@@ -231,23 +234,30 @@ public class FicBot {
             List<Fiction> allFictions = ficJsonHandler.getAllFics();
             try {
                 for (Fiction fiction : allFictions) {
-                    int ficId = fiction.getFicID();
-    
-                    int latestChapter = Integer.parseInt(ficScraper.searchForChap(fiction.getFicLink()));
+                    Document doc;
+                    try {
+                        doc = Config.fetch(fiction.getFicLink());
+                    } catch (IOException e) {
+                        System.err.println("Failed to fetch " + fiction.getTitle() + ": " + e.getMessage());
+                        continue;
+                    }
                     
-                    if (ficScraper.checkIfStubbed(gateWay, ficId)) {
-                        message = String.format("Seems like %s has been STUBBED! New latest chapter amount is: %d. Updating fiction to the new latest chapter! Here is the link: %s", fiction.getTitle(), latestChapter, ficScraper.nextChapFicLink(ficId));
-                        ficJsonHandler.setFicChapter(ficId, latestChapter);
+                    String chapText = doc.select("div.portlet.light > div.portlet-title > div.actions > span").text();
+                    int currentChapCount = Integer.parseInt(chapText.split(" ")[0]);
+                    
+                    if (ficScraper.checkIfStubbed(fiction, currentChapCount)) {
+                        message = String.format("Seems like %s has been STUBBED! New latest chapter amount is: %d. Updating fiction to the new latest chapter! Here is the link: %s", fiction.getTitle(), currentChapCount, ficScraper.nextChapFicLink(fiction, doc));
+                        ficJsonHandler.setFicChapter(fiction, currentChapCount);
                         sendMessage(gateWay, message).subscribe();
                     }
-                    if (ficScraper.checkUpdatedChap(ficId)) {
-                        if (!lastSeenChapters.containsKey(ficId)) {
-                            lastSeenChapters.put(ficId, latestChapter);
+                    if (ficScraper.checkUpdatedChap(fiction, currentChapCount)) {
+                        if (!lastSeenChapters.containsKey(fiction.getFicID())) {
+                            lastSeenChapters.put(fiction.getFicID(), currentChapCount);
                             
                             message = String.format("New chapter found! New chapter found in %s is: %d\nLink: %s", 
-                                    ficJsonHandler.getFicTitle(ficId),
-                                    ficJsonHandler.getChapAmount(ficId) + 1, 
-                                    ficScraper.nextChapFicLink(ficId));
+                                    fiction.getTitle(),
+                                    fiction.getChapAmount() + 1, 
+                                    ficScraper.nextChapFicLink(fiction, doc));
 
                             sendMessage(gateWay, message).subscribe();
                         }

@@ -246,7 +246,7 @@ public class InteractionManager {
                 
                 if (chapterIndex >= 0 && chapterIndex < allChapters.size() + 1) {
                     String chapterName = allChapters.get(chapterIndex);
-                    ficJsonHandler.setFicChapter(selectedFicId, chapterIndex + 1);
+                    ficJsonHandler.setFicChapter(ficJsonHandler.getFic(selectedFicId), chapterIndex + 1);
                     return event.reply()
                         .withContent("You selected: " + chapterName + " (Chapter " + (chapterIndex + 1) + ")")
                         .then();
