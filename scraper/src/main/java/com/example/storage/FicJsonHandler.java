@@ -1,5 +1,7 @@
-package com.example;
+package com.example.storage;
 import java.util.List;
+
+import com.example.model.Fiction;
 
 
 public class FicJsonHandler {
@@ -47,22 +49,6 @@ public class FicJsonHandler {
         }
     }
 
-    public int getChapAmount(int ficId) {
-        Fiction fiction = getFic(ficId);
-        if (fiction != null) {
-            return fiction.getChapAmount();
-        }
-        return -1;    
-    }
-
-    public String getFicLink(int ficId) {
-        Fiction fiction = getFic(ficId);
-        if (fiction != null) {
-            return fiction.getFicLink();
-        }
-        return "Fiction link not found";
-    }
-
     public String getFicTitle(int ficId) {
         Fiction fiction = getFic(ficId);
         if (fiction != null) {
@@ -70,38 +56,5 @@ public class FicJsonHandler {
         }
         return "Fiction title not found";
     }
-
-    public boolean matchFicTitle(String ficTitle) {
-        List<Fiction> fictions = getAllFics();
-        for (Fiction fiction : fictions) {
-            if (fiction.getTitle().equals(ficTitle)) {
-                System.out.println("Matching fic title found.");
-                return true; 
-            }
-        } 
-
-        return false;
-    }
-
-    public void printJsonContent() {
-        List<Fiction> fictions = getAllFics();
-        int i = 1;
-        if (fictions.isEmpty()) {
-            System.out.println("No fictions found");
-            return;
-        }
-           
-        for (Fiction fic : fictions) {
-            System.out.println("Fic Number: " + i);
-
-            System.out.println("Title: " + fic.getTitle());
-            System.out.println("Author: " + fic.getAuthor());
-            System.out.println("chapAmount: " + fic.getChapAmount());
-            System.out.println("description: " + fic.getDescription());
-            System.out.println();
-            i++;
-        }
-    }
-
 
 }

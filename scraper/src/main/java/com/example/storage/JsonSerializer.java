@@ -1,9 +1,12 @@
-package com.example;
+package com.example.storage;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 
+import com.example.Config;
+import com.example.model.Fiction;
+import com.example.model.FictionList;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 

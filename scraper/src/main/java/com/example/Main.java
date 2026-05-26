@@ -1,5 +1,7 @@
 package com.example;
 
+import com.example.bot.FicBot;
+
 import discord4j.core.GatewayDiscordClient;
 import io.github.cdimascio.dotenv.Dotenv;
 

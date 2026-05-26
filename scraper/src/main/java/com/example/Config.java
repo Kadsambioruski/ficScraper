@@ -8,6 +8,7 @@ import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
+import com.example.storage.FicJsonHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class Config {

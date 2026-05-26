@@ -1,4 +1,4 @@
-package com.example;
+package com.example.bot;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -8,6 +8,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.jsoup.nodes.Document;
+
+import com.example.Config;
+import com.example.FicScraper;
+import com.example.model.Fiction;
+import com.example.storage.FicJsonHandler;
 
 import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClient;
@@ -226,7 +231,7 @@ public class FicBot {
                     int currentChapCount = Integer.parseInt(chapText.split(" ")[0]);
                     
                     if (ficScraper.checkIfStubbed(fiction, currentChapCount)) {
-                        message = String.format("Seems like %s has been STUBBED! New latest chapter amount is: %d. Updating fiction to the new latest chapter! Here is the link: %s", fiction.getTitle(), currentChapCount, ficScraper.nextChapFicLink(fiction, doc));
+                        message = String.format("Seems like %s has been STUBBED! New latest chapter amount is: %d. Updating fiction to the new latest chapter! Here is the link: %s", fiction.getTitle(), currentChapCount, ficScraper.nextChapFicLink(fiction));
                         ficJsonHandler.setFicChapter(fiction, currentChapCount);
                         sendMessage(gateWay, message).subscribe();
                     }
@@ -238,7 +243,7 @@ public class FicBot {
                             message = String.format("New chapter found! New chapter found in %s is: %d\nLink: %s", 
                                     fiction.getTitle(),
                                     fiction.getChapAmount() + 1, 
-                                    ficScraper.nextChapFicLink(fiction, doc));
+                                    ficScraper.nextChapFicLink(fiction));
 
                             sendMessage(gateWay, message).subscribe();
                         }

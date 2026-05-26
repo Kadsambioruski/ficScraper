@@ -1,7 +1,10 @@
-package com.example;
+package com.example.model;
+
+import com.example.scrape.Site;
 
 public class Fiction {
-    String ficLink; 
+    String ficLink;
+    Site site; 
     int ficID;
     String title;
     String author;
@@ -11,8 +14,9 @@ public class Fiction {
 
     public Fiction(){}
 
-    public Fiction(String ficLink, int ficID, String title, String author, int chapAmount, String description) {
+    public Fiction(String ficLink, Site site, int ficID, String title, String author, int chapAmount, String description) {
         this.ficLink = ficLink;
+        this.site = site;
         this.ficID = ficID;
         this.title = title;
         this.author = author;
@@ -22,6 +26,10 @@ public class Fiction {
 
     public String getFicLink() {
         return this.ficLink;
+    }
+    
+    public Site getSite() {
+        return this.site;
     }
 
     public int getFicID() {
@@ -40,6 +48,10 @@ public class Fiction {
         return this.chapAmount;
     }
     
+    public String getDescription() {
+        return this.description;
+    }
+    
     public void setChapAmount(int chapter) {
         this.chapAmount = chapter;
     }
@@ -48,9 +60,6 @@ public class Fiction {
         this.ficID = ficId;
     }
 
-    public String getDescription() {
-        return this.description;
-    }
 
 
 

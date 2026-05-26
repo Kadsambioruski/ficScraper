@@ -1,4 +1,4 @@
-package com.example;
+package com.example.bot;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -6,6 +6,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import com.example.Config;
+import com.example.FicScraper;
+import com.example.model.Fiction;
+import com.example.storage.FicJsonHandler;
 
 import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
@@ -62,12 +67,12 @@ public class InteractionManager {
         String action = parts[1];  // first_page, prev_page, etc.
         int currentPage = Integer.parseInt(parts[2]);
         int ficId = Integer.parseInt(parts[3]);
-        
+        Fiction fic = ficJsonHandler.getFic(ficId);
         List<?> items = Collections.emptyList();
         
         switch (menuType) {
             case "chapList":
-                items = ficScraper.getAllChapterNames(ficId); 
+                items = ficScraper.getAllChapterNames(fic); 
                 break;
             case "fictionList":
             case "finishList":
@@ -203,7 +208,7 @@ public class InteractionManager {
                 int ficId = Integer.parseInt(selectedValue);
                 
                 Fiction fiction = ficJsonHandler.getFic(ficId);
-                List<String> allChapters = ficScraper.getAllChapterNames(ficId);
+                List<String> allChapters = ficScraper.getAllChapterNames(fiction);
                 
                 if (allChapters == null || allChapters.isEmpty()) {
                     return event.reply()
@@ -234,8 +239,9 @@ public class InteractionManager {
                 int selectedFicId = Integer.parseInt(parts[0]);
                 int chapterIndex = Integer.parseInt(parts[1]);
                 
-                String ficName = ficJsonHandler.getFicTitle(selectedFicId);
-                List<String> allChapters = ficScraper.getAllChapterNames(selectedFicId);
+                Fiction fiction = ficJsonHandler.getFic(selectedFicId);
+                String ficName = fiction.getTitle();
+                List<String> allChapters = ficScraper.getAllChapterNames(fiction);
                 
                 if (allChapters == null || allChapters.isEmpty()) {
                     return event.reply()
@@ -246,7 +252,7 @@ public class InteractionManager {
                 
                 if (chapterIndex >= 0 && chapterIndex < allChapters.size() + 1) {
                     String chapterName = allChapters.get(chapterIndex);
-                    ficJsonHandler.setFicChapter(ficJsonHandler.getFic(selectedFicId), chapterIndex + 1);
+                    ficJsonHandler.setFicChapter(fiction, chapterIndex + 1);
                     return event.reply()
                         .withContent("You selected: " + chapterName + " (Chapter " + (chapterIndex + 1) + ")")
                         .then();
