@@ -33,21 +33,18 @@ public class FicJsonHandler {
         int i = 0;
 
         for (Fiction fiction : fictions) {
-            fiction.ficID = i;
+            fiction.setFicId(i);
             i++;
         }
     }
 
-    public String setFicChapter(Fiction fiction, int chapter) {
-        String returnStatement;
+    public void setFicChapter(Fiction fiction, int chapter) {
         if (fiction != null) {
             fiction.setChapAmount(chapter);
-            returnStatement = "Chapter amount succesfully updated to: " + chapter;
+            System.out.println("Chapter amount succesfully updated to: " + chapter);
         } else {
-            returnStatement = "Fic with specified name not found";
+            System.out.println("Fic with specified name not found");
         }
-
-        return returnStatement; 
     }
 
     public int getChapAmount(int ficId) {

@@ -22,7 +22,7 @@ import reactor.core.publisher.Mono;
 
 public class InteractionManager {
     private static final Map<String, Message> existingMessages = new HashMap<>();
-    private static final FicJsonHandler ficJsonHandler = new FicJsonHandler();
+    private static final FicJsonHandler ficJsonHandler = Config.ficJsonHandler();
     private final FicScraper ficScraper;
     
     public InteractionManager() {
@@ -234,7 +234,7 @@ public class InteractionManager {
                 int selectedFicId = Integer.parseInt(parts[0]);
                 int chapterIndex = Integer.parseInt(parts[1]);
                 
-                String ficName = ficJsonHandler.getFic(selectedFicId).getTitle();
+                String ficName = ficJsonHandler.getFicTitle(selectedFicId);
                 List<String> allChapters = ficScraper.getAllChapterNames(selectedFicId);
                 
                 if (allChapters == null || allChapters.isEmpty()) {

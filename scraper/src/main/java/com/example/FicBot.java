@@ -16,7 +16,6 @@ import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
 import discord4j.core.object.command.ApplicationCommandInteractionOption;
 import discord4j.core.object.command.ApplicationCommandInteractionOptionValue;
 import discord4j.core.object.command.ApplicationCommandOption;
-import discord4j.core.object.component.SelectMenu;
 import discord4j.core.object.entity.channel.MessageChannel;
 import discord4j.discordjson.json.ApplicationCommandData;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
@@ -30,7 +29,7 @@ public class FicBot {
     private final String token;
     final private static String DISCORD_SERVER_ID = dotEnv.get("DISCORD_SERVER_ID");
     final private static String DISCORD_CHANNEL_ID = dotEnv.get("DISCORD_CHANNEL_ID"); 
-    private static final FicJsonHandler ficJsonHandler = new FicJsonHandler();
+    private static final FicJsonHandler ficJsonHandler = Config.ficJsonHandler();
     private final InteractionManager interactionManager;
 
     private GatewayDiscordClient client;
@@ -51,6 +50,7 @@ public class FicBot {
         client = login(token);
         registerCommands(client).subscribe();
         interactionManager.registerListeners(client);
+        receiveDiscCommand(client);
     }
     
     public void receiveDiscCommand(GatewayDiscordClient gateway){
@@ -125,26 +125,6 @@ public class FicBot {
             fic -> String.valueOf(fic.getFicID()), // value sent on selection
             0
         ));
-    }
-        
-    public static SelectMenu createFicSelectMenu(List<Fiction> allFics) {
-    
-        List<SelectMenu.Option> options = allFics.stream()
-            .limit(25)
-            .map(fiction -> SelectMenu.Option.of(fiction.getTitle(), ""+ fiction.getFicID()))
-            .toList();
-
-        return SelectMenu.of("ficList", options).withPlaceholder("Select a fiction");
-    }
-
-    public static SelectMenu createFinishFicSelectMenu(List<Fiction> allFics) {
-    
-        List<SelectMenu.Option> options = allFics.stream()
-            .limit(25)
-            .map(fiction -> SelectMenu.Option.of(fiction.getTitle(), ""+ fiction.getFicID()))
-            .toList();
-
-        return SelectMenu.of("finishFic", options).withPlaceholder("Select a fiction");
     }
 
     public static Mono<Void> handleEndLoopCommand(ChatInputInteractionEvent event) {
@@ -232,8 +212,8 @@ public class FicBot {
             nextTime = nextTime.plus(interval);
 
             List<Fiction> allFictions = ficJsonHandler.getAllFics();
-            try {
-                for (Fiction fiction : allFictions) {
+            for (Fiction fiction : allFictions) {
+                try {
                     Document doc;
                     try {
                         doc = Config.fetch(fiction.getFicLink());
@@ -251,7 +231,8 @@ public class FicBot {
                         sendMessage(gateWay, message).subscribe();
                     }
                     if (ficScraper.checkUpdatedChap(fiction, currentChapCount)) {
-                        if (!lastSeenChapters.containsKey(fiction.getFicID())) {
+                        Integer lastSeen = lastSeenChapters.get(fiction.getFicID());
+                        if (lastSeen == null || currentChapCount > lastSeen) {
                             lastSeenChapters.put(fiction.getFicID(), currentChapCount);
                             
                             message = String.format("New chapter found! New chapter found in %s is: %d\nLink: %s", 
@@ -262,9 +243,9 @@ public class FicBot {
                             sendMessage(gateWay, message).subscribe();
                         }
                     }
+                } catch (NumberFormatException e) {
+                    System.err.println("Error during scraping loop: " + e.getMessage());
                 }
-            } catch (NumberFormatException e) {
-                System.err.println("Error during scraping loop: " + e.getMessage());
             }
             
            

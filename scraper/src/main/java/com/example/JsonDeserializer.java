@@ -1,12 +1,10 @@
 package com.example;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 
@@ -16,16 +14,6 @@ public class JsonDeserializer {
     
     public JsonDeserializer(){
         this.jsonPath = Config.ficsJsonPath();
-    }
-
-    public JsonNode readJsonFile() {
-        try (FileInputStream fileInputStream = new FileInputStream(jsonPath.toFile())) { // Translates the text to UTF_8
-            return objectMapper.readTree(fileInputStream);
-            
-        } catch (IOException e) {
-            e.printStackTrace(); 
-            return null;       
-        }
     }
 
     public Fiction getFic(int ficID) {

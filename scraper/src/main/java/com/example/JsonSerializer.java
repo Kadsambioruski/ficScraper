@@ -15,8 +15,6 @@ public class JsonSerializer {
     public JsonSerializer(){
         this.readingFicsPath = Config.ficsJsonPath();
         this.finishedFicsPath = Config.finishedFicsJsonPath();
-
-        System.out.println("JSON file path: " + readingFicsPath.toAbsolutePath());
     }
     
     // Make boolean for this method to determine if its going to be saved to the "finished" json file or not

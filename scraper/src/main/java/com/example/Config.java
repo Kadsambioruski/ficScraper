@@ -16,6 +16,8 @@ public class Config {
     private static final String FINISHED_FICS_JSON_PATH = "finishedFics.json";
     private static final ObjectMapper instance = new ObjectMapper();
     private static final Connection SESSION = Jsoup.newSession().timeout(30000).userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+    private static final FicJsonHandler ficJsonHandler = new FicJsonHandler();
+    public static FicJsonHandler ficJsonHandler() { return ficJsonHandler; }
     
     public static Document fetch(String url) throws IOException {
         return SESSION.url(url).get();

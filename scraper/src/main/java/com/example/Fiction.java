@@ -1,7 +1,7 @@
 package com.example;
 
 public class Fiction {
-    String ficLink;
+    String ficLink; 
     int ficID;
     String title;
     String author;
@@ -42,6 +42,10 @@ public class Fiction {
     
     public void setChapAmount(int chapter) {
         this.chapAmount = chapter;
+    }
+
+    public void setFicId(int ficId) {
+        this.ficID = ficId;
     }
 
     public String getDescription() {

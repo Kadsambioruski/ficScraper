@@ -16,32 +16,11 @@ import org.jsoup.select.Elements;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class FicScraper {
-    private final FicJsonHandler ficJsonHandler; 
+public class FicScraper { 
+    private static final FicJsonHandler ficJsonHandler = Config.ficJsonHandler();
     private final ObjectMapper objectMapper = Config.objectMapper();
     private static final Set<Integer> updatedFics = new HashSet<>();
     private final Path jsonPath = Config.ficsJsonPath();
-
-
-    public FicScraper(){
-        this.ficJsonHandler = new FicJsonHandler();
-    }
-
-    //#endregion
-
-
-    public Elements connectToUrl(String ficUrl) {
-        Elements wrapper = new Elements();
-    
-        try {
-            Document document = Config.fetch(ficUrl);
-            wrapper = document.select(".mt-list-container.no-border.list-news.ext-1");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return wrapper;
-    }
 
     public Fiction ficInformation(String ficUrl) {
         Fiction fic = null;
@@ -84,30 +63,6 @@ public class FicScraper {
         return fic;
     }
 
-
-    public String searchForChap(String ficUrl){
-        String output = "";
-        try {
-            Document document = Config.fetch(ficUrl);
-            output = document.select("div.portlet.light > div.portlet-title > div.actions > span").text();
-            String parsedOutput = output.split(" ")[0];
-            return parsedOutput;
-        } catch (IOException e) {
-            e.printStackTrace();
-
-        }
-        return output;
-    }
-
-    public void searchForTitle(Elements wrapper) {
-        for (Element potato : wrapper) {
-            Elements book = potato.select(".mt-list-item.no-border.inline-block");
-            String title = book.select("h2 > a").text();
-            System.out.println(title + ".");
-            System.out.println("=========================================");
-        }
-    }
-
     public boolean checkUpdatedChap(Fiction fiction, int currentChapCount){
         if (fiction.getChapAmount() < currentChapCount) {
             updatedFics.add(fiction.getFicID());
@@ -123,7 +78,7 @@ public class FicScraper {
     
     public static List<Fiction> getUpdatedFics() {
         return updatedFics.stream()
-            .map(id -> new FicJsonHandler().getFic(id))
+            .map(id -> ficJsonHandler.getFic(id))
             .filter(fiction -> fiction != null)
             .collect(Collectors.toList());
     }
@@ -180,16 +135,16 @@ public class FicScraper {
         return chapterLink;
     }
 
-    public int getFicWordAmount(Fiction fiction, Document document) {
+    public void getFicWordAmount(Fiction fiction, Document document) {
         int wordCount = 0;
         try {
             Element pagesLi = document.selectFirst("ul.list-unstyled li:contains(Pages)");
 
-            if (pagesLi == null) return 0;
+            if (pagesLi == null) return;
 
             Element iTag = pagesLi.selectFirst("i.popovers");
             
-            if (iTag == null) return 0; 
+            if (iTag == null) return; 
             
             String dataContent = iTag.attr("data-content");
             Pattern pattern = Pattern.compile("calculated from ([0-9,]+) words");
@@ -204,7 +159,21 @@ public class FicScraper {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return wordCount;
+    }
+
+    public List<String> getAllChapterNames(Fiction fiction, Document document) {
+        List<String> allChapterNames = null;
+        try {
+            System.out.println("Here is the ficLink: " + fiction.getFicLink());
+            Elements allChapters = document.select("table#chapters tbody tr");
+            allChapterNames = allChapters
+                .stream()
+                .map(chapter -> chapter.select("a").first().text())
+                .collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return allChapterNames;
     }
 
     public List<String> getAllChapterNames(int ficId) {
@@ -223,7 +192,6 @@ public class FicScraper {
         }
         return allChapterNames;
     }
-
 }
 
 

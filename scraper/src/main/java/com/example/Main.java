@@ -18,10 +18,6 @@ public class Main {
         if (DISCORD_CLIENT != null) {
             System.out.println("MAIN STARTED");
             ficBot.start();
-        
-            ficBot.receiveDiscCommand(DISCORD_CLIENT);
-            FicBot.scrapeFicLoop(DISCORD_CLIENT);
-
         }
 
     }
