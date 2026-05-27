@@ -21,10 +21,9 @@ public class FanfictionScraper implements SiteScraper {
             Document document = Config.fetch(url);
 
             String title = document.select("b.xcontrast_txt").text();
-            String author = document.select("a.xcontrast_txt:nth-child(4)").text();
-            String description = document.select("div.xcontrast_txt:nth-child(7)").text();
+            String author = document.select("#profile_top a.xcontrast_txt").first().text();
+            String description = document.select("#profile_top div.xcontrast_txt").first().text();
             String metadata = document.select(".xgray.xcontrast_txt").text();
-            System.out.println("Metadata: " + metadata);
             int chapterAmount = extractNumber(metadata, "Chapters:");
 
             System.out.println("===============================================");
@@ -34,7 +33,7 @@ public class FanfictionScraper implements SiteScraper {
             System.out.println("Description: " + description);
             System.out.println("===============================================");
 
-            fic = new Fiction(url, Site.FANFICTION, 0, title, author, chapterAmount, description);
+            fic = new Fiction(url, Site.FANFICTION, 0, title, author, 0, description);
             return fic;
         } catch (Exception e) {
             // TODO: handle exception
@@ -47,13 +46,19 @@ public class FanfictionScraper implements SiteScraper {
         List<String> allChapterNames = null;
         try {
             Document document = Config.fetch(fiction.getFicLink());
-            System.out.println("Here is the ficLink: " + fiction.getFicLink());
-            Elements allChapters = document.select("select#chap_select > option");
-            
+            Elements allChapters = document.select("select#chap_select").first().select("option");
             allChapterNames = allChapters
                 .stream()
                 .map(Element::text)
                 .collect(Collectors.toList());
+            
+            String metadata = document.select(".xgray.xcontrast_txt").text();
+            int chapterAmount = extractNumber(metadata, "Chapters:");
+            
+            while (allChapterNames.size() < chapterAmount) {
+                allChapterNames.add("Chapter: " + (allChapterNames.size() + 1));
+            }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -64,7 +69,7 @@ public class FanfictionScraper implements SiteScraper {
         List<String> allChapterLinks = null;
         try {
             Document document = Config.fetch(fiction.getFicLink());
-            Elements allChapters = document.select("select#chap_select > option");
+            Elements allChapters = document.select("select#chap_select").first().select("option");
             
             String ficLink = fiction.getFicLink();
             String storyId = ficLink.split("/s/")[1].split("/")[0];
@@ -76,7 +81,14 @@ public class FanfictionScraper implements SiteScraper {
                 .map(value -> "https://www.fanfiction.net/s/" + storyId + "/" + value + "/" + storyTitle)
                 .collect(Collectors.toList());
             
-        } catch (IOException e) {
+            String metadata = document.select(".xgray.xcontrast_txt").text();
+            int chapterAmount = extractNumber(metadata, "Chapters:");
+            
+            for (int i = allChapterLinks.size() + 1; i <= chapterAmount; i++) {
+                allChapterLinks.add("https://www.fanfiction.net/s/" + storyId + "/" + i + "/" + storyTitle);
+            }
+
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return allChapterLinks;
@@ -92,7 +104,7 @@ public class FanfictionScraper implements SiteScraper {
             int scrapedChapAmount = allChapterLinks.size();
 
             if (scrapedChapAmount > storedChapAmount) {
-                chapterLink = allChapterLinks.get(storedChapAmount);
+                chapterLink = allChapterLinks.get(scrapedChapAmount - 1);
                 System.out.println("Next chapter found: " + chapterLink);
             } else if (scrapedChapAmount < storedChapAmount) {
                 chapterLink = allChapterLinks.get(scrapedChapAmount - 1);

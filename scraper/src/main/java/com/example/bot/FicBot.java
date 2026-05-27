@@ -1,13 +1,10 @@
 package com.example.bot;
-import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import org.jsoup.nodes.Document;
 
 import com.example.Config;
 import com.example.FicScraper;
@@ -91,7 +88,7 @@ public class FicBot {
             allUpdatedFics,
             0, // start at page 0
             "Select the fiction with a new chapter that you have read:",
-            "ficList", // customId for finishing fics
+            "fictionList", // customId for finishing fics
             fic -> fic.getTitle(), // display name
             fic -> String.valueOf(fic.getFicID()), // value sent on selection
             0
@@ -128,7 +125,7 @@ public class FicBot {
             allFics,
             0, // start at page 0
             "Select the fiction that you have finished:",
-            "finishFic", // customId for finishing fics
+            "finishList", // customId for finishing fics
             fic -> fic.getTitle(), // display name
             fic -> String.valueOf(fic.getFicID()), // value sent on selection
             0

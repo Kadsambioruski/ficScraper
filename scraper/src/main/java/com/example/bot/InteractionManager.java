@@ -83,7 +83,6 @@ public class InteractionManager {
         }
 
         final List<?> finalItems = items;
-
         int pageSize = 25;
         int totalPages = (int) Math.ceil((double) finalItems.size() / pageSize);
         
@@ -94,8 +93,12 @@ public class InteractionManager {
             case "next_page": newPage = Math.min(currentPage + 1, totalPages - 1) ; break;
             case "last_page": newPage = totalPages - 1; break;
             default: return Mono.empty();                                   
-        }    
+        }
 
+        if (finalItems.isEmpty()) {
+            return event.reply("No items available.").then();
+        }
+        
         if (menuType.equals("chapList")) {
             // For chapters
             return event.deferReply().then(sendPaginatedMenu(
@@ -127,6 +130,7 @@ public class InteractionManager {
     }
     
     public static <T> List<T> getPage(List<T> items, int page, int pageSize) {
+        if (page < 0) return new ArrayList<>();
         int start = page * pageSize;
         if (start >= items.size()) return new ArrayList<>();
         return items.stream()
@@ -202,7 +206,7 @@ public class InteractionManager {
         String customId = event.getCustomId();
 
         switch (customId) {
-            case "ficList":
+            case "fictionList":
             {
                 String selectedValue = event.getValues().get(0); // Get the selected value
                 int ficId = Integer.parseInt(selectedValue);
@@ -262,7 +266,7 @@ public class InteractionManager {
                     .then();
                 }
             }
-            case "finishFic":
+            case "finishList":
                 System.out.println("This shows up if are in finishFic case");
                 String selectedValue = event.getValues().get(0); // Get the selected value
                 int ficId = Integer.parseInt(selectedValue);
