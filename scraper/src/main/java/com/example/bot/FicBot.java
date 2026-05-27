@@ -109,11 +109,14 @@ public class FicBot {
             .orElse("Unknown Fic");
 
 
-
         System.out.println("Recieved link of fic: " + ficlink);
-        
-        putFicInJson(ficlink);
-        return event.reply(String.format("The fic with the link:" + ficlink + " has been added to the list")).then();
+   
+        try {
+            putFicInJson(ficlink);
+            return event.reply("The fic with the link:" + ficlink + " has been added to the list").then();
+        } catch (Exception e) {
+            return event.reply("Failed to add fic: " + e.getMessage()).then();
+        }
     }
 
     public static Mono<Void> handleFinishFicCommand(ChatInputInteractionEvent event) {
@@ -218,17 +221,10 @@ public class FicBot {
             List<Fiction> allFictions = ficJsonHandler.getAllFics();
             for (Fiction fiction : allFictions) {
                 try {
-                    Document doc;
-                    try {
-                        doc = Config.fetch(fiction.getFicLink());
-                    } catch (IOException e) {
-                        System.err.println("Failed to fetch " + fiction.getTitle() + ": " + e.getMessage());
-                        continue;
-                    }
-                    
-                    String chapText = doc.select("div.portlet.light > div.portlet-title > div.actions > span").text();
-                    int currentChapCount = Integer.parseInt(chapText.split(" ")[0]);
-                    
+                    List<String> chapterNames = ficScraper.getAllChapterNames(fiction);
+
+                    int currentChapCount = chapterNames.size();
+
                     if (ficScraper.checkIfStubbed(fiction, currentChapCount)) {
                         message = String.format("Seems like %s has been STUBBED! New latest chapter amount is: %d. Updating fiction to the new latest chapter! Here is the link: %s", fiction.getTitle(), currentChapCount, ficScraper.nextChapFicLink(fiction));
                         ficJsonHandler.setFicChapter(fiction, currentChapCount);

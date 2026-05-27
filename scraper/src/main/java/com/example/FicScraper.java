@@ -19,6 +19,9 @@ public class FicScraper {
         Site site = Site.fromUrl(ficUrl);
         SiteScraper scraper = ScraperFactory.forFic(site);
         Fiction fic = scraper.scrapeInfo(ficUrl);
+        if (fic == null) {
+            throw new RuntimeException("Failed to scrape story: " + ficUrl);
+        }
         fic.setFicId(ficJsonHandler.getAllFics().size() + 1);
         return fic;
     }

@@ -16,7 +16,15 @@ public class Config {
     private static final String FICS_JSON_PATH = "fics.json";
     private static final String FINISHED_FICS_JSON_PATH = "finishedFics.json";
     private static final ObjectMapper instance = new ObjectMapper();
-    private static final Connection SESSION = Jsoup.newSession().timeout(30000).userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+    private static final Connection SESSION = Jsoup.newSession()
+            .timeout(30000)
+            .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+            .header("Accept-Language", "en-US,en;q=0.5")
+            .header("Accept-Encoding", "gzip, deflate")
+            .header("Connection", "keep-alive")
+            .header("Upgrade-Insecure-Requests", "1");
+
     private static final FicJsonHandler ficJsonHandler = new FicJsonHandler();
     public static FicJsonHandler ficJsonHandler() { return ficJsonHandler; }
     

@@ -1,7 +1,8 @@
 package com.example.scrape;
 
 public enum Site {
-    ROYAL_ROAD("royalroad.com");
+    ROYAL_ROAD("royalroad.com"),
+    FANFICTION("fanfiction.net");
     
     final String domain;
 
