@@ -42,7 +42,7 @@ public class FicJsonHandler {
 
     public void setFicChapter(Fiction fiction, int chapter) {
         if (fiction != null) {
-            fiction.setChapAmount(chapter);
+            jsonSerializer.updateChapAmount(fiction, chapter);
             System.out.println("Chapter amount succesfully updated to: " + chapter);
         } else {
             System.out.println("Fic with specified name not found");

@@ -81,5 +81,22 @@ public class JsonSerializer {
         }
     }
 
+    public void updateChapAmount(Fiction updatedFic, int newChapAmount) {
+        try {
+            File readingFile = readingFicsPath.toFile();
+            FictionList readingList = objectMapper.readValue(readingFile, FictionList.class);
+
+            for (Fiction fiction : readingList.getFictions()) {
+                if (fiction.getFicID() == updatedFic.getFicID()) {
+                    fiction.setChapAmount(newChapAmount);
+                    break;
+                }
+            }
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(readingFile, readingList);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 
 }

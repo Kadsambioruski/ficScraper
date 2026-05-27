@@ -29,6 +29,9 @@ public class Fiction {
     }
     
     public Site getSite() {
+        if (this.site == null && this.ficLink != null) {
+            site = Site.fromUrl(this.ficLink);
+        }
         return this.site;
     }
 
