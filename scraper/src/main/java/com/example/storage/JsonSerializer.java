@@ -3,6 +3,8 @@ package com.example.storage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.example.Config;
 import com.example.model.Fiction;
@@ -44,6 +46,16 @@ public class JsonSerializer {
             e.printStackTrace();
         }
 
+    }
+
+    public void saveFicList(List<Fiction> fictions) {
+        try {
+            FictionList list = new FictionList();
+            list.setFictions(new ArrayList<>(fictions));
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(readingFicsPath.toFile(), list);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void moveFicToFinished(Fiction fiction) {

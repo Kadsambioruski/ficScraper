@@ -33,11 +33,11 @@ public class FicJsonHandler {
     public void resetFicIds() {
         List<Fiction> fictions = getAllFics();
         int i = 0;
-
         for (Fiction fiction : fictions) {
             fiction.setFicId(i);
             i++;
         }
+        jsonSerializer.saveFicList(fictions);
     }
 
     public void setFicChapter(Fiction fiction, int chapter) {

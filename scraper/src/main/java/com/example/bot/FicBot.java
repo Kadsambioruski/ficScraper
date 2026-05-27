@@ -183,7 +183,6 @@ public class FicBot {
 
     public static void putFicInJson(String newLinkToFic){
         System.out.println("Put in link to new fic: ");
-        // TODO parse through input to check link format
         FicScraper ficScraper = new FicScraper();
         Fiction newFic = ficScraper.ficInformation(newLinkToFic);
         
