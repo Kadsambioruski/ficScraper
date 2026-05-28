@@ -221,6 +221,10 @@ public class FicBot {
                     List<String> chapterNames = ficScraper.getAllChapterNames(fiction);
 
                     int currentChapCount = chapterNames.size();
+                    if (chapterNames == null || chapterNames.isEmpty()) {
+                        System.err.println("Skipping " + fiction.getTitle() + ": could not retrieve chapters.");
+                        continue;
+                    }
 
                     if (ficScraper.checkIfStubbed(fiction, currentChapCount)) {
                         message = String.format("Seems like %s has been STUBBED! New latest chapter amount is: %d. Updating fiction to the new latest chapter! Here is the link: %s", fiction.getTitle(), currentChapCount, ficScraper.nextChapFicLink(fiction));
@@ -240,7 +244,7 @@ public class FicBot {
                             sendMessage(gateWay, message).subscribe();
                         }
                     }
-                } catch (NumberFormatException e) {
+                } catch (Exception e) {
                     System.err.println("Error during scraping loop: " + e.getMessage());
                 }
             }

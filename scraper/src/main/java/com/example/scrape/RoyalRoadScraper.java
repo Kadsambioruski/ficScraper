@@ -26,12 +26,8 @@ public class RoyalRoadScraper implements SiteScraper{
             String author = titleAndAuthorContainer.select("h4 > span > a").text();
             String chapterText = document.select("div.portlet.light > div.portlet-title > div.actions > span").text();
             int chapterAmount = Integer.parseInt(chapterText.split(" ")[0]);
-    
-            System.out.println("===============================================");
-            System.out.println("Title: " + title);
-            System.out.println("Author: " + author);
-            System.out.println("chapAmount: " + chapterAmount);
-            
+            int wordCount = extractWordCount(document); 
+
             StringBuilder descriptionBuilder = new StringBuilder();
             Elements descContainer = document.select("div.description");
             for (Element text : descContainer.select("div.hidden-content")) {
@@ -40,10 +36,16 @@ public class RoyalRoadScraper implements SiteScraper{
     
             }
             String description = descriptionBuilder.toString().trim();
+            
+            System.out.println("===============================================");
+            System.out.println("Title: " + title);
+            System.out.println("Author: " + author);
+            System.out.println("ChapAmount: " + chapterAmount);
+            System.out.println("WordCount: " + wordCount);
             System.out.println("Description: " + description);
             System.out.println("===============================================");
     
-            fic = new Fiction(url, Site.ROYAL_ROAD, 0, title, author, chapterAmount, description);
+            fic = new Fiction(url, Site.ROYAL_ROAD, 0, title, author, chapterAmount, wordCount, description);
             return fic;
             
         } catch (Exception e) {
@@ -118,26 +120,32 @@ public class RoyalRoadScraper implements SiteScraper{
         int wordCount = 0;
         try {
             Document document = Config.fetch(fiction.getFicLink());
-            Element pagesLi = document.selectFirst("ul.list-unstyled li:contains(Pages)");
+            wordCount = extractWordCount(document);
 
-            if (pagesLi == null) return 0;
-
-            Element iTag = pagesLi.selectFirst("i.popovers");
-            
-            if (iTag == null) return 0; 
-            
-            String dataContent = iTag.attr("data-content");
-            Pattern pattern = Pattern.compile("calculated from ([0-9,]+) words");
-            Matcher matcher = pattern.matcher(dataContent);
-
-            if (matcher.find()) {
-                String wordCountStr = matcher.group(1).replaceAll(",", "");
-                return Integer.parseInt(wordCountStr);
-            }
-        
             System.out.printf("Should be the word amount of fic '%s': %s\n",fiction.getTitle(), wordCount);
+            return wordCount;
         } catch (Exception e) {
             e.printStackTrace();
+        }
+        return wordCount;
+    }
+
+    private int extractWordCount(Document document) {
+        Element pagesLi = document.selectFirst("ul.list-unstyled li:contains(Pages)");
+
+        if (pagesLi == null) return 0;
+
+        Element iTag = pagesLi.selectFirst("i.popovers");
+        
+        if (iTag == null) return 0; 
+        
+        String dataContent = iTag.attr("data-content");
+        Pattern pattern = Pattern.compile("calculated from ([0-9,]+) words");
+        Matcher matcher = pattern.matcher(dataContent);
+
+        if (matcher.find()) {
+            String wordCountStr = matcher.group(1).replaceAll(",", "");
+            return Integer.parseInt(wordCountStr); 
         }
         return 0;
     }

@@ -12,7 +12,6 @@ import com.example.storage.FicJsonHandler;
 
 
 public class FicScraper { 
-    private static final FicJsonHandler ficJsonHandler = Config.ficJsonHandler();
     private static final Set<Integer> updatedFics = new HashSet<>();
 
     public Fiction ficInformation(String ficUrl) {
@@ -22,7 +21,7 @@ public class FicScraper {
         if (fic == null) {
             throw new RuntimeException("Failed to scrape story: " + ficUrl);
         }
-        fic.setFicId(ficJsonHandler.getAllFics().size() + 1);
+        fic.setFicId(Config.ficJsonHandler().getAllFics().size() + 1);
         return fic;
     }
 
@@ -41,7 +40,7 @@ public class FicScraper {
     
     public static List<Fiction> getUpdatedFics() {
         return updatedFics.stream()
-            .map(id -> ficJsonHandler.getFic(id))
+            .map(id -> Config.ficJsonHandler().getFic(id))
             .filter(fiction -> fiction != null)
             .collect(Collectors.toList());
     }
@@ -60,6 +59,10 @@ public class FicScraper {
 
     public List<String> getAllChapterNames(Fiction fiction) {
         return ScraperFactory.forFic(fiction.getSite()).getChapterNames(fiction);
+    }
+
+    public int getWordCount(Fiction fiction) {
+        return ScraperFactory.forFic(fiction.getSite()).getWordCount(fiction);
     }
 }
 

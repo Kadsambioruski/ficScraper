@@ -9,18 +9,20 @@ public class Fiction {
     String title;
     String author;
     int chapAmount;
+    int wordCount;
     String description;
 
 
     public Fiction(){}
 
-    public Fiction(String ficLink, Site site, int ficID, String title, String author, int chapAmount, String description) {
+    public Fiction(String ficLink, Site site, int ficID, String title, String author, int chapAmount, int wordCount, String description) {
         this.ficLink = ficLink;
         this.site = site;
         this.ficID = ficID;
         this.title = title;
         this.author = author;
         this.chapAmount = chapAmount;
+        this.wordCount = wordCount;
         this.description = description;
     }
 
@@ -50,6 +52,9 @@ public class Fiction {
     public int getChapAmount() {
         return this.chapAmount;
     }
+    public int getWordCount() {
+        return this.wordCount;
+    }
     
     public String getDescription() {
         return this.description;
@@ -63,7 +68,7 @@ public class Fiction {
         this.ficID = ficId;
     }
 
-
-
-
+    public void setWordCount(int wordCount) {
+        this.wordCount = wordCount;
+    }
 }

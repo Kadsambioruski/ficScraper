@@ -1,5 +1,4 @@
 package com.example.scrape;
-import java.io.IOException;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -25,18 +24,19 @@ public class FanfictionScraper implements SiteScraper {
             String description = document.select("#profile_top div.xcontrast_txt").first().text();
             String metadata = document.select(".xgray.xcontrast_txt").text();
             int chapterAmount = extractNumber(metadata, "Chapters:");
+            int wordCount = extractNumber(metadata, "Words:");
 
             System.out.println("===============================================");
             System.out.println("Title: " + title);
             System.out.println("Author: " + author);
             System.out.println("chapAmount: " + chapterAmount);
+            System.out.println("wordCount: " + wordCount);
             System.out.println("Description: " + description);
             System.out.println("===============================================");
 
-            fic = new Fiction(url, Site.FANFICTION, 0, title, author, 0, description);
+            fic = new Fiction(url, Site.FANFICTION, 0, title, author, 0, wordCount, description);
             return fic;
         } catch (Exception e) {
-            // TODO: handle exception
             e.printStackTrace();
         }
         return null;
@@ -104,7 +104,7 @@ public class FanfictionScraper implements SiteScraper {
             int scrapedChapAmount = allChapterLinks.size();
 
             if (scrapedChapAmount > storedChapAmount) {
-                chapterLink = allChapterLinks.get(scrapedChapAmount - 1);
+                chapterLink = allChapterLinks.get(storedChapAmount);
                 System.out.println("Next chapter found: " + chapterLink);
             } else if (scrapedChapAmount < storedChapAmount) {
                 chapterLink = allChapterLinks.get(scrapedChapAmount - 1);

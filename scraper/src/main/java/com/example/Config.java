@@ -11,12 +11,18 @@ import org.jsoup.nodes.Document;
 import com.example.storage.FicJsonHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.github.cdimascio.dotenv.Dotenv;
+
 public class Config {
     private static final String DATA_DIR = "data";
     private static final String FICS_JSON_PATH = "fics.json";
     private static final String FINISHED_FICS_JSON_PATH = "finishedFics.json";
     private static final ObjectMapper instance = new ObjectMapper();
-    private static final Connection SESSION = Jsoup.newSession()
+    final private static Dotenv dotEnv = Dotenv.configure().directory("scraper").load();
+    final private static String COOKIE = dotEnv.get("FF_COOKIE");
+    private static final Connection SESSION;
+    static {
+        Connection session = Jsoup.newSession()
             .timeout(30000)
             .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
             .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
@@ -24,6 +30,12 @@ public class Config {
             .header("Accept-Encoding", "gzip, deflate")
             .header("Connection", "keep-alive")
             .header("Upgrade-Insecure-Requests", "1");
+        if (COOKIE != null && !COOKIE.isEmpty()) {
+            session.cookie("cf_clearance", COOKIE);
+            System.out.println("Loaded cf_clearance cookie");
+        }
+        SESSION = session;
+    }
 
     private static final FicJsonHandler ficJsonHandler = new FicJsonHandler();
     public static FicJsonHandler ficJsonHandler() { return ficJsonHandler; }
