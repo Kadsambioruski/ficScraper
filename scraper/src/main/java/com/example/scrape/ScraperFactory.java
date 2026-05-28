@@ -5,7 +5,8 @@ import java.util.Map;
 public class ScraperFactory {
     private static final Map<Site, SiteScraper> scrapers = Map.of(
         Site.ROYAL_ROAD, new RoyalRoadScraper(),
-        Site.FANFICTION, new FanfictionScraper()
+        Site.FANFICTION, new FanfictionScraper(),
+        Site.AO3, new AO3Scraper()
     );
 
     public static SiteScraper forFic(Site site) {
