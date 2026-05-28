@@ -54,21 +54,21 @@ public class FicJsonHandler {
     }
 
     public void backfillWordCounts() {
-    try {
-        Path finishedPath = Config.finishedFicsJsonPath();
-        ObjectMapper mapper = Config.objectMapper();
-        FictionList finishedList = mapper.readValue(finishedPath.toFile(), FictionList.class);
+        try {
+            Path finishedPath = Config.finishedFicsJsonPath();
+            ObjectMapper mapper = Config.objectMapper();
+            FictionList finishedList = mapper.readValue(finishedPath.toFile(), FictionList.class);
 
-        for (Fiction fic : finishedList.getFictions()) {
-            int words = ficScraper.getWordCount(fic);
-            fic.setWordCount(words);
-            System.out.println("Updated word count for " + fic.getTitle() + ": " + words);
+            for (Fiction fic : finishedList.getFictions()) {
+                int words = ficScraper.getWordCount(fic);
+                fic.setWordCount(words);
+                System.out.println("Updated word count for " + fic.getTitle() + ": " + words);
+            }
+            mapper.writerWithDefaultPrettyPrinter().writeValue(finishedPath.toFile(), finishedList);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        mapper.writerWithDefaultPrettyPrinter().writeValue(finishedPath.toFile(), finishedList);
-    } catch (IOException e) {
-        e.printStackTrace();
     }
-}
 
     public void resetFicIds() {
         List<Fiction> fictions = getAllFics();

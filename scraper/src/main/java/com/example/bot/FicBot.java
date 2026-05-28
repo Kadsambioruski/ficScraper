@@ -64,6 +64,7 @@ public class FicBot {
                     case "endloop": return handleEndLoopCommand(event);
                     case "startloop": return handleStartLoopCommand(event);
                     case "add": return handleAddFicCommand(event);
+                    case "wordcount": return handleWordCountCommand(event);
                     default: return Mono.empty();
                 }
             })
@@ -181,6 +182,11 @@ public class FicBot {
             }));
     }
 
+    public static Mono<Void> handleWordCountCommand(ChatInputInteractionEvent event) {
+        return event.reply(String.format("Total words read from finished fics: %,d", Config.ficJsonHandler().getTotalReadWords()));
+    }
+
+
     public static void putFicInJson(String newLinkToFic){
         System.out.println("Put in link to new fic: ");
         FicScraper ficScraper = new FicScraper();
@@ -265,8 +271,9 @@ public class FicBot {
         Mono<ApplicationCommandData> endLoopCommand = FicBot.registerEndLoopCommand(gateway, DISCORD_SERVER_ID, applicationId);
         Mono<ApplicationCommandData> startLoopCommand = FicBot.registerStartLoopCommand(gateway, DISCORD_SERVER_ID, applicationId);
         Mono<ApplicationCommandData> addFicCommand = FicBot.registerAddFicCommand(gateway, DISCORD_SERVER_ID, applicationId);
+        Mono<ApplicationCommandData> wordCountCommand = FicBot.registerWordCountCommand(gateway, DISCORD_SERVER_ID, applicationId);
 
-        return Mono.when(readCommand, finishCommand, endLoopCommand, startLoopCommand, addFicCommand)
+        return Mono.when(readCommand, finishCommand, endLoopCommand, startLoopCommand, addFicCommand, wordCountCommand)
                 .doOnSuccess(_ -> System.out.println("Commands registered successfully"))
                 .then(sendMessage(gateway, "Bot is now ready and online!"));
     }
@@ -287,6 +294,23 @@ public class FicBot {
         ApplicationCommandRequest commandRequest = ApplicationCommandRequest.builder()
             .name("read")
             .description("Tells the bot that the chapter for the specific fic has been read")
+            .build();
+
+            return gateway.getRestClient().getApplicationService()
+                .createGuildApplicationCommand(applicationId, guildId, commandRequest)
+                .onErrorResume(e -> {
+                    e.printStackTrace();
+                    return Mono.empty();
+                });
+    }
+
+    public static Mono<ApplicationCommandData> registerWordCountCommand(GatewayDiscordClient gateway, String guildIdString, long applicationId) {
+        long guildId = Long.parseLong(guildIdString);
+        System.out.println("Creating wordCount command!");
+
+        ApplicationCommandRequest commandRequest = ApplicationCommandRequest.builder()
+            .name("wordcount")
+            .description("Get the total word count of the fics you have finished reading.")
             .build();
 
             return gateway.getRestClient().getApplicationService()
