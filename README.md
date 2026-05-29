@@ -1,5 +1,5 @@
 # ficScraper
-
+[![License](https://img.shields.io/badge/license-PolyForm_NC-orange?style=flat-square)](LICENSE)
 A Java Discord bot that scrapes web fiction and fanfiction sites to track your reading progress. It periodically checks for new chapters on tracked fictions and notifies you via Discord slash commands.
 
 ## Features
