@@ -306,7 +306,7 @@ public class FicBot {
 
     public static Mono<ApplicationCommandData> registerWordCountCommand(GatewayDiscordClient gateway, String guildIdString, long applicationId) {
         long guildId = Long.parseLong(guildIdString);
-        System.out.println("Creating wordCount command!");
+        System.out.println("Creating wordcount command!");
 
         ApplicationCommandRequest commandRequest = ApplicationCommandRequest.builder()
             .name("wordcount")
@@ -384,7 +384,7 @@ public class FicBot {
 
     public static Mono<ApplicationCommandData> registerStartLoopCommand(GatewayDiscordClient gateway, String guildIdString, long applicationId) {
         long guildId = Long.parseLong(guildIdString);
-        System.out.println("Creating startLoop command!");
+        System.out.println("Creating startloop command!");
         ApplicationCommandRequest commandRequest1 = ApplicationCommandRequest.builder()
             .name("startloop")
             .description("Tells the bot that the scraping loop should start")
