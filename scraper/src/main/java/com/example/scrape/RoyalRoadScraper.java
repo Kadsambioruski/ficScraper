@@ -1,4 +1,5 @@
 package com.example.scrape;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -12,45 +13,42 @@ import org.jsoup.select.Elements;
 import com.example.Config;
 import com.example.model.Fiction;
 
-public class RoyalRoadScraper implements SiteScraper{
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class RoyalRoadScraper implements SiteScraper {
+    private static final Logger log = LoggerFactory.getLogger(RoyalRoadScraper.class);
+
     public Site supportedSite() { return Site.ROYAL_ROAD; }
-    
+
     public Fiction scrapeInfo(String url) {
         Fiction fic = null;
         try {
             Document document = Config.fetch(url);
-            
+
             Elements titleAndAuthorContainer = document.select(".col");
-            
+
             String title = titleAndAuthorContainer.select("h1").text();
             String author = titleAndAuthorContainer.select("h4 > span > a").text();
             String chapterText = document.select("div.portlet.light > div.portlet-title > div.actions > span").text();
             int chapterAmount = Integer.parseInt(chapterText.split(" ")[0]);
-            int wordCount = extractWordCount(document); 
+            int wordCount = extractWordCount(document);
 
             StringBuilder descriptionBuilder = new StringBuilder();
             Elements descContainer = document.select("div.description");
             for (Element text : descContainer.select("div.hidden-content")) {
                 String paragraph = text.select("p").text();
                 descriptionBuilder.append(paragraph);
-    
             }
             String description = descriptionBuilder.toString().trim();
-            
-            System.out.println("===============================================");
-            System.out.println("Title: " + title);
-            System.out.println("Author: " + author);
-            System.out.println("ChapAmount: " + chapterAmount);
-            System.out.println("WordCount: " + wordCount);
-            System.out.println("Description: " + description);
-            System.out.println("===============================================");
-    
+
+            log.debug("Scraped RoyalRoad fic - Title: {}, Author: {}, Chapters: {}, Words: {}", title, author, chapterAmount, wordCount);
+
             fic = new Fiction(url, Site.ROYAL_ROAD, 0, title, author, chapterAmount, wordCount, description);
             return fic;
-            
+
         } catch (Exception e) {
-            // TODO: handle exception
-            e.printStackTrace();
+            log.error("Failed to scrape info from {}", url, e);
         }
         return null;
     }
@@ -60,13 +58,13 @@ public class RoyalRoadScraper implements SiteScraper{
         try {
             Document document = Config.fetch(fiction.getFicLink());
             Elements allChapters = document.select("table#chapters tbody tr");
-            
+
             allChapterLinks = allChapters
             .stream()
             .map(chapter -> chapter.attr("data-url"))
             .collect(Collectors.toList());
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Failed to get chapter links for {}", fiction.getFicLink(), e);
         }
         return allChapterLinks;
     }
@@ -82,20 +80,20 @@ public class RoyalRoadScraper implements SiteScraper{
                 .map(chapter -> chapter.attr("data-url"))
                 .collect(Collectors.toList());
 
-            int scrapedChapAmount = allChapterLinks.size(); 
+            int scrapedChapAmount = allChapterLinks.size();
 
             if (scrapedChapAmount > chapAmount) {
                 chapterLink = "https://www.royalroad.com" + allChapterLinks.get(chapAmount);
-                System.out.println("Chapter link found: " + chapterLink);
-            } else if (scrapedChapAmount < chapAmount) { 
+                log.debug("Next chapter found: {}", chapterLink);
+            } else if (scrapedChapAmount < chapAmount) {
                 chapterLink = "https://www.royalroad.com" + allChapterLinks.get(scrapedChapAmount - 1);
-                System.out.println("Chapter link found: " + chapterLink);
+                log.debug("Fiction may be stubbed. Using latest available: {}", chapterLink);
             } else {
-                System.out.println("Chapter link not found: requested index is out of bounds.");
+                log.debug("No new chapter found.");
             }
-            
+
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to find next chapter link for {}", fiction.getFicLink(), e);
         }
         return chapterLink;
     }
@@ -104,14 +102,14 @@ public class RoyalRoadScraper implements SiteScraper{
         List<String> allChapterNames = null;
         try {
             Document document = Config.fetch(fiction.getFicLink());
-            System.out.println("Here is the ficLink: " + fiction.getFicLink());
+            log.debug("Fetching chapter names for: {}", fiction.getFicLink());
             Elements allChapters = document.select("table#chapters tbody tr");
             allChapterNames = allChapters
                 .stream()
                 .map(chapter -> chapter.select("a").first().text())
                 .collect(Collectors.toList());
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to get chapter names for {}", fiction.getFicLink(), e);
         }
         return allChapterNames;
     }
@@ -122,10 +120,10 @@ public class RoyalRoadScraper implements SiteScraper{
             Document document = Config.fetch(fiction.getFicLink());
             wordCount = extractWordCount(document);
 
-            System.out.printf("Should be the word amount of fic '%s': %s\n",fiction.getTitle(), wordCount);
+            log.debug("Word count for '{}': {}", fiction.getTitle(), wordCount);
             return wordCount;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to get word count for {}", fiction.getFicLink(), e);
         }
         return wordCount;
     }
@@ -136,16 +134,16 @@ public class RoyalRoadScraper implements SiteScraper{
         if (pagesLi == null) return 0;
 
         Element iTag = pagesLi.selectFirst("i.popovers");
-        
-        if (iTag == null) return 0; 
-        
+
+        if (iTag == null) return 0;
+
         String dataContent = iTag.attr("data-content");
         Pattern pattern = Pattern.compile("calculated from ([0-9,]+) words");
         Matcher matcher = pattern.matcher(dataContent);
 
         if (matcher.find()) {
             String wordCountStr = matcher.group(1).replaceAll(",", "");
-            return Integer.parseInt(wordCountStr); 
+            return Integer.parseInt(wordCountStr);
         }
         return 0;
     }

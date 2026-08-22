@@ -2,9 +2,9 @@ package com.example.bot;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import com.example.Config;
@@ -25,8 +25,12 @@ import discord4j.core.spec.MessageCreateSpec;
 import discord4j.core.spec.MessageEditSpec;
 import reactor.core.publisher.Mono;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class InteractionManager {
-    private static final Map<String, Message> existingMessages = new HashMap<>();
+    private static final Logger log = LoggerFactory.getLogger(InteractionManager.class);
+    private static final Map<String, Message> existingMessages = new ConcurrentHashMap<>();
     private static final FicJsonHandler ficJsonHandler = Config.ficJsonHandler();
     private final FicScraper ficScraper;
     
@@ -101,7 +105,7 @@ public class InteractionManager {
         
         if (menuType.equals("chapList")) {
             // For chapters
-            return event.deferReply().then(sendPaginatedMenu(
+            return event.edit().then(sendPaginatedMenu(
                 event.getClient(),
                 event.getInteraction().getChannelId().asString(),
                 finalItems,
@@ -114,7 +118,7 @@ public class InteractionManager {
             ));
         } else {
             // For fictions
-            return event.deferReply().then(sendPaginatedMenu(
+            return event.edit().then(sendPaginatedMenu(
                 event.getClient(),
                 event.getInteraction().getChannelId().asString(),
                 finalItems,
@@ -222,7 +226,7 @@ public class InteractionManager {
                 
                 FicScraper.clearFicUpdate(ficId);
                 
-                return event.deferReply().then(sendPaginatedMenu(
+                return event.edit().then(sendPaginatedMenu(
                         event.getClient(),
                         event.getInteraction().getChannelId().asString(),
                         allChapters,
@@ -253,11 +257,10 @@ public class InteractionManager {
                             .then();
                 }
                 
-                
                 if (chapterIndex >= 0 && chapterIndex < allChapters.size() + 1) {
                     String chapterName = allChapters.get(chapterIndex);
                     ficJsonHandler.setFicChapter(fiction, chapterIndex + 1);
-                    return event.reply()
+                    return event.edit()
                         .withContent("You selected: " + chapterName + " (Chapter " + (chapterIndex + 1) + ")")
                         .then();
                 } else {
@@ -267,7 +270,7 @@ public class InteractionManager {
                 }
             }
             case "finishList":
-                System.out.println("This shows up if are in finishFic case");
+                log.debug("Finish fic case triggered");
                 String selectedValue = event.getValues().get(0); // Get the selected value
                 int ficId = Integer.parseInt(selectedValue);
                 

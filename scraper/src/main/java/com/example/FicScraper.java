@@ -1,18 +1,21 @@
 package com.example;
-import java.util.HashSet;
+
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import com.example.model.Fiction;
 import com.example.scrape.ScraperFactory;
 import com.example.scrape.Site;
 import com.example.scrape.SiteScraper;
-import com.example.storage.FicJsonHandler;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class FicScraper { 
-    private static final Set<Integer> updatedFics = new HashSet<>();
+public class FicScraper {
+    private static final Logger log = LoggerFactory.getLogger(FicScraper.class);
+    private static final Set<Integer> updatedFics = ConcurrentHashMap.newKeySet();
 
     public Fiction ficInformation(String ficUrl) {
         Site site = Site.fromUrl(ficUrl);
@@ -34,10 +37,10 @@ public class FicScraper {
     }
 
     public boolean checkIfStubbed(Fiction fiction, int currentChapCount) {
-        System.out.println("Checking if " + fiction.getTitle() + " is stubbed");
+        log.debug("Checking if {} is stubbed", fiction.getTitle());
         return fiction.getChapAmount() > currentChapCount;
     }
-    
+
     public static List<Fiction> getUpdatedFics() {
         return updatedFics.stream()
             .map(id -> Config.ficJsonHandler().getFic(id))
@@ -48,11 +51,11 @@ public class FicScraper {
     public static void clearFicUpdate(int ficId) {
         updatedFics.remove(ficId);
     }
-    
+
     public List<String> getAllChapterLinks(Fiction fiction) {
         return ScraperFactory.forFic(fiction.getSite()).getChapterLinks(fiction);
     }
-    
+
     public String nextChapFicLink(Fiction fiction) {
        return ScraperFactory.forFic(fiction.getSite()).nextChapterLink(fiction);
     }
@@ -65,6 +68,3 @@ public class FicScraper {
         return ScraperFactory.forFic(fiction.getSite()).getWordCount(fiction);
     }
 }
-
-
-

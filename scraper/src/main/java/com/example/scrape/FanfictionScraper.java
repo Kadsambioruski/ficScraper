@@ -1,4 +1,5 @@
 package com.example.scrape;
+
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -11,7 +12,12 @@ import com.example.Config;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class FanfictionScraper implements SiteScraper {
+    private static final Logger log = LoggerFactory.getLogger(FanfictionScraper.class);
+
     public Site supportedSite() { return Site.FANFICTION; }
 
     public Fiction scrapeInfo(String url) {
@@ -26,18 +32,12 @@ public class FanfictionScraper implements SiteScraper {
             int chapterAmount = extractNumber(metadata, "Chapters:");
             int wordCount = extractNumber(metadata, "Words:");
 
-            System.out.println("===============================================");
-            System.out.println("Title: " + title);
-            System.out.println("Author: " + author);
-            System.out.println("chapAmount: " + chapterAmount);
-            System.out.println("wordCount: " + wordCount);
-            System.out.println("Description: " + description);
-            System.out.println("===============================================");
+            log.debug("Scraped FanFiction fic - Title: {}, Author: {}, Chapters: {}, Words: {}", title, author, chapterAmount, wordCount);
 
             fic = new Fiction(url, Site.FANFICTION, 0, title, author, 0, wordCount, description);
             return fic;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to scrape info from {}", url, e);
         }
         return null;
     }
@@ -51,16 +51,16 @@ public class FanfictionScraper implements SiteScraper {
                 .stream()
                 .map(Element::text)
                 .collect(Collectors.toList());
-            
+
             String metadata = document.select(".xgray.xcontrast_txt").text();
             int chapterAmount = extractNumber(metadata, "Chapters:");
-            
+
             while (allChapterNames.size() < chapterAmount) {
                 allChapterNames.add("Chapter: " + (allChapterNames.size() + 1));
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to get chapter names for {}", fiction.getFicLink(), e);
         }
         return allChapterNames;
     }
@@ -70,26 +70,26 @@ public class FanfictionScraper implements SiteScraper {
         try {
             Document document = Config.fetch(fiction.getFicLink());
             Elements allChapters = document.select("select#chap_select").first().select("option");
-            
+
             String ficLink = fiction.getFicLink();
             String storyId = ficLink.split("/s/")[1].split("/")[0];
             String storyTitle = ficLink.split("/s/")[1].split("/", 3)[2];
 
-            allChapterLinks = allChapters.stream()  
+            allChapterLinks = allChapters.stream()
                 .map(option -> option.attr("value"))
                 .filter(value -> value != null && !value.isEmpty())
                 .map(value -> "https://www.fanfiction.net/s/" + storyId + "/" + value + "/" + storyTitle)
                 .collect(Collectors.toList());
-            
+
             String metadata = document.select(".xgray.xcontrast_txt").text();
             int chapterAmount = extractNumber(metadata, "Chapters:");
-            
+
             for (int i = allChapterLinks.size() + 1; i <= chapterAmount; i++) {
                 allChapterLinks.add("https://www.fanfiction.net/s/" + storyId + "/" + i + "/" + storyTitle);
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to get chapter links for {}", fiction.getFicLink(), e);
         }
         return allChapterLinks;
     }
@@ -100,36 +100,36 @@ public class FanfictionScraper implements SiteScraper {
             List<String> allChapterLinks = getChapterLinks(fiction);
 
             int storedChapAmount = fiction.getChapAmount();
- 
+
             int scrapedChapAmount = allChapterLinks.size();
 
             if (scrapedChapAmount > storedChapAmount) {
                 chapterLink = allChapterLinks.get(storedChapAmount);
-                System.out.println("Next chapter found: " + chapterLink);
+                log.debug("Next chapter found: {}", chapterLink);
             } else if (scrapedChapAmount < storedChapAmount) {
                 chapterLink = allChapterLinks.get(scrapedChapAmount - 1);
-                System.out.println("Fiction may be stubbed. Using latest available: " + chapterLink);
+                log.warn("Fiction may be stubbed. Using latest available: {}", chapterLink);
             } else {
-                System.out.println("No new chapter found.");
+                log.debug("No new chapter found.");
             }
-            
+
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to find next chapter link for {}", fiction.getFicLink(), e);
         }
         return chapterLink;
     }
-    
+
     public int getWordCount(Fiction fiction) {
         try {
             Document document = Config.fetch(fiction.getFicLink());
             String metadata = document.select(".xgray.xcontrast_txt").text();
 
             int wordCount = extractNumber(metadata, "Words:");
-            
-            System.out.printf("Should be the word amount of fic '%s': %s\n",fiction.getTitle(), wordCount);
+
+            log.debug("Word count for '{}': {}", fiction.getTitle(), wordCount);
             return wordCount;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to get word count for {}", fiction.getFicLink(), e);
         }
         return 0;
     }
@@ -144,5 +144,5 @@ public class FanfictionScraper implements SiteScraper {
 
         return 0;
     }
-        
+
 }

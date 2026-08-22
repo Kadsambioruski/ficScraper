@@ -8,27 +8,20 @@ import java.nio.file.Paths;
 import com.example.bot.FicBot;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import discord4j.core.GatewayDiscordClient;
 import io.github.cdimascio.dotenv.Dotenv;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Main {
-    final private static Dotenv dotEnv = Dotenv.configure().directory("scraper").load();
-    final private static String TOKEN = dotEnv.get("DISCORD_BOT_TOKEN");
-    final private static GatewayDiscordClient DISCORD_CLIENT = FicBot.login(TOKEN);
-    final private static FicBot ficBot = new FicBot(TOKEN);
- 
-    /*Should add json file for storing the fics that i have read through to the end. For now i will put them in this comment:
-    Industrial Strength Magic
-    DIE.RESPAWN.REPEAT
-    
-    */     
-    public static void main(String[] args) {
-        if (DISCORD_CLIENT != null) {
-            checkDataFiles();
-            System.out.println("MAIN STARTED");
-            ficBot.start();
-        }
+    private static final Logger log = LoggerFactory.getLogger(Main.class);
+    private static final Dotenv dotEnv = Dotenv.configure().directory("scraper").load();
+    private static final String TOKEN = dotEnv.get("DISCORD_BOT_TOKEN");
+    private static final FicBot ficBot = new FicBot(TOKEN);
 
+    public static void main(String[] args) {
+        checkDataFiles();
+        log.info("Main started");
+        ficBot.start();
     }
 
     private static void checkDataFiles() {
@@ -38,21 +31,21 @@ public class Main {
 
         try {
             if (!Files.exists(dataDir)) {
-                System.out.println("data/ directory not found. Creating...");
+                log.info("data/ directory not found. Creating...");
                 Files.createDirectories(dataDir);
             }
 
             for (Path path : new Path[] {ficsPath, finishedFicsPath}) {
                 if (!Files.exists(path)) {
-                    System.out.println(path.getFileName() + " not found. Creating with empty structure...");
+                    log.info("{} not found. Creating with empty structure...", path.getFileName());
                     ObjectMapper mapper = new ObjectMapper();
                     mapper.writeValue(path.toFile(), new com.example.model.FictionList());
                 } else {
-                    System.out.println(path.getFileName() + " found, skipping");
+                    log.info("{} found, skipping", path.getFileName());
                 }
             }
         } catch (IOException e) {
-            System.err.println("Failed to initalize data files: " + e.getMessage());
+            log.error("Failed to initialize data files", e);
             System.exit(1);
         }
     }

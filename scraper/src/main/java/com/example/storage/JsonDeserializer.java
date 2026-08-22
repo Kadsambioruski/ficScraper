@@ -10,11 +10,14 @@ import com.example.model.Fiction;
 import com.example.model.FictionList;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JsonDeserializer {
+    private static final Logger log = LoggerFactory.getLogger(JsonDeserializer.class);
     private final ObjectMapper objectMapper = Config.objectMapper();
     private final Path jsonPath;
-    
+
     public JsonDeserializer(){
         this.jsonPath = Config.ficsJsonPath();
     }
@@ -34,7 +37,7 @@ public class JsonDeserializer {
             FictionList fictionList = objectMapper.readValue(jsonPath.toFile(), FictionList.class);
             return fictionList.getFictions();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Failed to read fics from JSON", e);
             return new ArrayList<>();
         }
     }

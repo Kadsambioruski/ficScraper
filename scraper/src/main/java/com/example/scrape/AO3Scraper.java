@@ -11,7 +11,12 @@ import org.jsoup.select.Elements;
 import org.jsoup.nodes.Element;
 import com.example.Config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class AO3Scraper implements SiteScraper {
+    private static final Logger log = LoggerFactory.getLogger(AO3Scraper.class);
+
     public Site supportedSite() { return Site.AO3; }
 
     public Fiction scrapeInfo(String url) {
@@ -20,27 +25,21 @@ public class AO3Scraper implements SiteScraper {
             String workUrl = normalizeWorkUrl(url);
             Document document = Config.fetch(workUrl);
 
-            String title = document.select("h2.title.heading").text();
+            String title = document.select("h2.title heading").text();
             String author = document.select("a[rel=\"author\"]").text();
             String description = document.select("div.summary blockquote.userstuff").text();
-            
+
             String chaptersText = document.select("dd.chapters").text();
             int chapterAmount = Integer.parseInt(chaptersText.split("/")[0]);
-            
-            int wordCount = extractNumber(document.select("dd.words").text()); 
 
-            System.out.println("===============================================");
-            System.out.println("Title: " + title);
-            System.out.println("Author: " + author);
-            System.out.println("chapAmount: " + chapterAmount);
-            System.out.println("wordCount: " + wordCount);
-            System.out.println("Description: " + description);
-            System.out.println("===============================================");
+            int wordCount = extractNumber(document.select("dd.words").text());
 
-            fic = new Fiction(url, Site.AO3, 0, title, author, 0, wordCount, description);
+            log.debug("Scraped AO3 fic - Title: {}, Author: {}, Chapters: {}, Words: {}", title, author, chapterAmount, wordCount);
+
+            fic = new Fiction(url, Site.AO3, 0, title, author, chapterAmount, wordCount, description);
             return fic;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to scrape info from {}", url, e);
         }
         return null;
     }
@@ -49,15 +48,15 @@ public class AO3Scraper implements SiteScraper {
         List<String> allChapterNames = null;
         try {
             Document document = Config.fetch(fiction.getFicLink());
-            System.out.println("Here is the ficLink: " + fiction.getFicLink());
+            log.debug("Fetching chapter names for: {}", fiction.getFicLink());
             Elements allChapters = document.select("select#selected_id option");
-            
+
             allChapterNames = allChapters
                 .stream()
                 .map(Element::text)
                 .collect(Collectors.toList());
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to get chapter names for {}", fiction.getFicLink(), e);
         }
         return allChapterNames;
     }
@@ -67,11 +66,10 @@ public class AO3Scraper implements SiteScraper {
         try {
             Document document = Config.fetch(fiction.getFicLink());
             Elements allChapters = document.select("select#selected_id option");
-            
+
             String ficLink = fiction.getFicLink();
             String workId = ficLink.split("/works/")[1].split("/")[0];
             String baseUrl = ficLink.split("/works/")[0] + "/works/" + workId;
-
 
             allChapterLinks = allChapters
             .stream()
@@ -80,7 +78,7 @@ public class AO3Scraper implements SiteScraper {
             .map(value -> baseUrl + "/chapters/" + value)
             .collect(Collectors.toList());
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Failed to get chapter links for {}", fiction.getFicLink(), e);
         }
         return allChapterLinks;
     }
@@ -95,29 +93,29 @@ public class AO3Scraper implements SiteScraper {
 
             if (scrapedChapAmount > storedChapAmount) {
                 chapterLink = allChapterLinks.get(storedChapAmount);
-                System.out.println("Next chapter found: " + chapterLink);
+                log.debug("Next chapter found: {}", chapterLink);
             } else if (scrapedChapAmount < storedChapAmount) {
                 chapterLink = allChapterLinks.get(scrapedChapAmount - 1);
-                System.out.println("Fiction may be stubbed. Using latest available: " + chapterLink);
+                log.warn("Fiction may be stubbed. Using latest available: {}", chapterLink);
             } else {
-                System.out.println("No new chapter found.");
+                log.debug("No new chapter found.");
             }
-            
+
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to find next chapter link for {}", fiction.getFicLink(), e);
         }
         return chapterLink;
     }
-    
+
     public int getWordCount(Fiction fiction) {
         try {
             Document document = Config.fetch(fiction.getFicLink());
-            int wordCount = extractNumber(document.select("dd.words").text()); 
-            
-            System.out.printf("Should be the word amount of fic '%s': %s\n",fiction.getTitle(), wordCount);
+            int wordCount = extractNumber(document.select("dd.words").text());
+
+            log.debug("Word count for '{}': {}", fiction.getTitle(), wordCount);
             return wordCount;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to get word count for {}", fiction.getFicLink(), e);
         }
         return 0;
     }
