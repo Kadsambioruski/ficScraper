@@ -15,6 +15,7 @@ import com.example.storage.FicJsonHandler;
 import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.interaction.ButtonInteractionEvent;
+import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
 import discord4j.core.event.domain.interaction.SelectMenuInteractionEvent;
 import discord4j.core.object.component.ActionRow;
 import discord4j.core.object.component.Button;
@@ -30,7 +31,6 @@ import org.slf4j.LoggerFactory;
 
 public class InteractionManager {
     private static final Logger log = LoggerFactory.getLogger(InteractionManager.class);
-    private static final Map<String, Message> existingMessages = new ConcurrentHashMap<>();
     private static final FicJsonHandler ficJsonHandler = Config.ficJsonHandler();
     private final FicScraper ficScraper;
     
@@ -83,7 +83,8 @@ public class InteractionManager {
                 items = ficJsonHandler.getAllFics();
                 break;
             default:
-                break;
+                log.warn("Unknown menutype: {}", menuType);
+                return event.deferEdit().then();
         }
 
         final List<?> finalItems = items;
@@ -103,34 +104,59 @@ public class InteractionManager {
             return event.reply("No items available.").then();
         }
         
+        String header;
+        SelectMenu selectMenu;
+        ActionRow selectRow;
+        ActionRow navRow;
+
+
         if (menuType.equals("chapList")) {
             // For chapters
-            return event.edit().then(sendPaginatedMenu(
-                event.getClient(),
-                event.getInteraction().getChannelId().asString(),
-                finalItems,
-                newPage,
-                "Choose a chapter",
+            header = "Choose a chaper";
+
+            selectMenu = createPaginatedSelectMenu(
                 menuType,
+                items,
+                newPage,
+                pageSize,
                 name -> (String) name,          // labelMapper
-                name -> ficId + ":" + finalItems.indexOf(name), // valueMapper
-                ficId
-            ));
+                name -> ficId + ":" + finalItems.indexOf(name) // valueMapper
+            );
+
+            selectRow = ActionRow.of(selectMenu);
+
+            navRow = createNavigationButtons(menuType, newPage, totalPages, ficId);
+
         } else {
             // For fictions
-            return event.edit().then(sendPaginatedMenu(
-                event.getClient(),
-                event.getInteraction().getChannelId().asString(),
-                finalItems,
-                newPage,
-                "Select a fiction",
+            header = "Select a fiction";
+
+            selectMenu = createPaginatedSelectMenu(
                 menuType,
+                items,
+                newPage,
+                pageSize,
                 fiction -> ((Fiction) fiction).getTitle(),
-                fiction -> Integer.toString(((Fiction) fiction).getFicID()),
-                ficId
-            ));
+                fiction -> Integer.toString(((Fiction) fiction).getFicID())
+            );
+
+            selectRow = ActionRow.of(selectMenu);
+
+            navRow = createNavigationButtons(menuType, newPage, totalPages, ficId);
+            
         }
 
+        String content = String.format(
+            "%s\nPage %d of %d", 
+            header, 
+            newPage + 1, 
+            totalPages 
+        );
+
+        return event.edit()
+            .withContent(content)
+            .withComponents(selectRow, navRow)
+            .then();
     }
     
     public static <T> List<T> getPage(List<T> items, int page, int pageSize) {
@@ -207,86 +233,163 @@ public class InteractionManager {
 
 
     public Mono<Void> handleSelectMenuInteractions(SelectMenuInteractionEvent event) {
-        String customId = event.getCustomId();
+    String customId = event.getCustomId();
 
-        switch (customId) {
-            case "fictionList":
-            {
-                String selectedValue = event.getValues().get(0); // Get the selected value
-                int ficId = Integer.parseInt(selectedValue);
-                
-                Fiction fiction = ficJsonHandler.getFic(ficId);
-                List<String> allChapters = ficScraper.getAllChapterNames(fiction);
-                
-                if (allChapters == null || allChapters.isEmpty()) {
-                    return event.reply()
-                            .withContent("Could not retrieve chapters for `" + fiction.getTitle() + "`. Please try again later.")
-                            .then();
-                }
-                
-                FicScraper.clearFicUpdate(ficId);
-                
-                return event.edit().then(sendPaginatedMenu(
-                        event.getClient(),
-                        event.getInteraction().getChannelId().asString(),
-                        allChapters,
-                        0,
-                        String.format("Choose the chapter that you have read for '%s' (ID: %d)", fiction.getTitle(), ficId),
-                        "chapList",
-                        name -> name,
-                        name -> ficId + ":" + allChapters.indexOf(name),
-                        ficId
-                        
-                ));
-                
-            }
-            case "chapList":
-            {
-                String selectedValue = event.getValues().get(0); // now "ficId:chapterIndex"
-                String[] parts = selectedValue.split(":");
-                int selectedFicId = Integer.parseInt(parts[0]);
-                int chapterIndex = Integer.parseInt(parts[1]);
-                
-                Fiction fiction = ficJsonHandler.getFic(selectedFicId);
-                String ficName = fiction.getTitle();
-                List<String> allChapters = ficScraper.getAllChapterNames(fiction);
-                
-                if (allChapters == null || allChapters.isEmpty()) {
-                    return event.reply()
-                            .withContent("⚠ Could not retrieve chapters for `" + ficName + "`. Please try again later.")
-                            .then();
-                }
-                
-                if (chapterIndex >= 0 && chapterIndex < allChapters.size() + 1) {
-                    String chapterName = allChapters.get(chapterIndex);
-                    ficJsonHandler.setFicChapter(fiction, chapterIndex + 1);
-                    return event.edit()
-                        .withContent("You selected: " + chapterName + " (Chapter " + (chapterIndex + 1) + ")")
-                        .then();
-                } else {
-                    return event.reply()
-                        .withContent("Selected chapter not found in the list")
-                    .then();
-                }
-            }
-            case "finishList":
-                log.debug("Finish fic case triggered");
-                String selectedValue = event.getValues().get(0); // Get the selected value
-                int ficId = Integer.parseInt(selectedValue);
-                
-                Fiction finishedFiction = ficJsonHandler.getFic(ficId);
-                
-                ficJsonHandler.moveFicToFinished(finishedFiction);
+    switch (customId) {
+        case "fictionList":
+        {
+            String selectedValue = event.getValues().get(0);
+            int ficId = Integer.parseInt(selectedValue);
 
+            Fiction fiction = ficJsonHandler.getFic(ficId);
+            List<String> allChapters = ficScraper.getAllChapterNames(fiction);
+
+            if (allChapters == null || allChapters.isEmpty()) {
                 return event.reply()
-                    .withContent("You have marked '" + finishedFiction.getTitle() + "' as finished!")
+                    .withContent(
+                        "Could not retrieve chapters for `" +
+                        fiction.getTitle() +
+                        "`. Please try again later."
+                    )
                     .then();
-            default:
-                return event.deferEdit().then();
+            }
+
+            FicScraper.clearFicUpdate(ficId);
+
+            int page = 0;
+
+            return event.deferEdit()
+                .then(sendPaginatedMenu(
+                    event.getClient(),
+                    event.getInteraction().getChannelId().asString(),
+                    allChapters,
+                    page,
+                    String.format(
+                        "Choose the chapter that you have read for '%s' (ID: %d)",
+                         fiction.getTitle(),
+                        ficId),
+                    "chapList",
+                    name -> name,
+                    name -> ficId + ":" + allChapters.indexOf(name),
+                    ficId
+            ));
         }
+
+        case "chapList":
+        {
+            String selectedValue = event.getValues().get(0);
+
+            String[] parts = selectedValue.split(":");
+            int selectedFicId = Integer.parseInt(parts[0]);
+            int chapterIndex = Integer.parseInt(parts[1]);
+
+            Fiction fiction = ficJsonHandler.getFic(selectedFicId);
+            String ficName = fiction.getTitle();
+
+            List<String> allChapters = ficScraper.getAllChapterNames(fiction);
+
+            if (allChapters == null || allChapters.isEmpty()) {
+                return event.reply()
+                    .withContent(
+                        "Could not retrieve chapters for `" +
+                        ficName +
+                        "`. Please try again later."
+                    )
+                    .then();
+            }
+
+            if (chapterIndex >= 0 && chapterIndex < allChapters.size()) {
+                String chapterName = allChapters.get(chapterIndex);
+
+                ficJsonHandler.setFicChapter(
+                    fiction,
+                    chapterIndex + 1
+                );
+
+                return event.edit()
+                    .withContent(
+                        "You selected: " +
+                        chapterName +
+                        " (Chapter " +
+                        (chapterIndex + 1) +
+                        ")"
+                    )
+                    .then();
+            }
+
+            return event.reply()
+                .withContent("Selected chapter not found in the list.")
+                .then();
+        }
+
+        case "finishList":
+        {
+            log.debug("Finish fic case triggered");
+
+            String selectedValue = event.getValues().get(0);
+            int ficId = Integer.parseInt(selectedValue);
+
+            Fiction finishedFiction = ficJsonHandler.getFic(ficId);
+
+            ficJsonHandler.moveFicToFinished(finishedFiction);
+
+            return event.edit()
+                .withContent(
+                    "You have marked '" +
+                    finishedFiction.getTitle() +
+                    "' as finished!"
+                )
+                .then();
+        }
+
+        default:
+            return event.deferEdit().then();
     }
+}
     
 
+
+    public static <T> Mono<Void> sendPaginatedMenu(
+        ChatInputInteractionEvent event,
+        List<T> items,
+        int page,
+        String header,
+        String menuId,
+        java.util.function.Function<T, String> labelMapper,
+        java.util.function.Function<T, String> valueMapper,
+        int ficId) {
+
+        int maxPageSize = 25;
+        
+        int totalPages = totalPages(items.size(), maxPageSize);
+
+        SelectMenu selectMenu = createPaginatedSelectMenu(
+            menuId,
+            items,
+            page,
+            maxPageSize,
+            labelMapper,
+            valueMapper
+        );
+
+        ActionRow selectRow = ActionRow.of(selectMenu);
+        ActionRow navRow = createNavigationButtons(
+            menuId,
+            page,
+            totalPages,
+            ficId
+        );
+
+        return event.editReply()
+            .withContentOrNull(String.format(
+                "%s\nPage %d of %d",
+                header,
+                page + 1,
+                totalPages
+            ))
+            .withComponents(selectRow, navRow)
+            .then();
+    }
 
     public static <T> Mono<Void> sendPaginatedMenu(
         GatewayDiscordClient gateway,
@@ -301,41 +404,28 @@ public class InteractionManager {
 
         Snowflake channelSnowflake = Snowflake.of(channelId);
         int maxPageSize = 25;
-        
+
         return gateway.getChannelById(channelSnowflake)
             .ofType(MessageChannel.class)
             .flatMap(channel -> {
-                Message existingMessage = existingMessages.get(menuId);
+
                 MessageCreateSpec createSpec = createPaginatedMenu(
-                    header, 
-                    menuId, 
-                    items, 
-                    page, 
-                    maxPageSize, 
-                    labelMapper, 
+                    header,
+                    menuId,
+                    items,
+                    page,
+                    maxPageSize,
+                    labelMapper,
                     valueMapper,
                     ficId
                 );
-                if (existingMessage == null) {
-                    return channel.createMessage(createSpec)
-                            .doOnNext(message -> existingMessages.put(menuId, message))
-                            .then();
-                } else {
-                    // Optionally check if existing message is for a different menu
-                    MessageEditSpec editSpec = editPaginatedMenu(
-                        header, 
-                        menuId, 
-                        items, 
-                        page, 
-                        maxPageSize, 
-                        labelMapper, 
-                        valueMapper,
-                        ficId
-                    );
-                    return existingMessage.edit(editSpec).then();
-                }
-                });
+
+                return channel.createMessage(createSpec);
+            })
+            .then();
     }
+
+
 
 
 }

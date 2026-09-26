@@ -80,6 +80,8 @@ public class FicBot {
     }
 
     public static Mono<Void> handleReadCommand(ChatInputInteractionEvent event) {
+        int page = 0;
+        
         return event.deferReply()
             .then(Mono.fromCallable(FicScraper::getUpdatedFics))
             .flatMap(allUpdatedFics -> {
@@ -88,10 +90,9 @@ public class FicBot {
                 }
 
             return InteractionManager.sendPaginatedMenu(
-                event.getClient(),
-                event.getInteraction().getChannelId().asString(),
+                event,
                 allUpdatedFics,
-                0,
+                page,
                 "Select the fiction with a new chapter that you have read:",
                 "fictionList",
                 fic -> fic.getTitle(),
@@ -122,9 +123,9 @@ public class FicBot {
     public static Mono<Void> handleFinishFicCommand(ChatInputInteractionEvent event) {
         List<Fiction> allFics = ficJsonHandler.getAllFics();
 
-        return InteractionManager.sendPaginatedMenu(
-            event.getClient(),
-            event.getInteraction().getChannelId().asString(),
+        return event.deferReply()
+        .then(InteractionManager.sendPaginatedMenu(
+            event,
             allFics,
             0,
             "Select the fiction that you have finished:",
@@ -132,6 +133,7 @@ public class FicBot {
             fic -> fic.getTitle(),
             fic -> String.valueOf(fic.getFicID()),
             0
+            )
         );
     }
 
