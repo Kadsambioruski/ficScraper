@@ -11,7 +11,9 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import com.example.ChapterHtmlCleaner;
 import com.example.Config;
+import com.example.model.ChapterInfo;
 import com.example.model.Fiction;
 
 import org.slf4j.Logger;
@@ -54,57 +56,55 @@ public class RoyalRoadScraper implements SiteScraper {
         return null;
     }
 
-    public List<String> getChapterLinks(Fiction fiction) {
-        List<String> allChapterLinks = null;
+    public String nextChapterLink(Fiction fiction) {
+        try {
+            List<ChapterInfo> chapters = getChapters(fiction);
+            int storedChapAmount = fiction.getChapAmount();
+            int scrapedChapAmount = chapters.size();
+
+            if (scrapedChapAmount > storedChapAmount) {
+                String chapterLink = chapters.get(storedChapAmount).getUrl();
+                log.debug("Next chapter found: {}", chapterLink);
+                return chapterLink;
+            }
+
+            if (scrapedChapAmount < storedChapAmount) {
+                String chapterLink = chapters.get(scrapedChapAmount - 1).getUrl();
+                log.warn("Fiction may be stubbed. Using latest available: {}", chapterLink);
+                return chapterLink;
+            }
+
+            log.debug("No new chapter found.");
+        } catch (Exception e) {
+            log.error("Failed to find next chapter link for {}", fiction.getFicLink(), e);
+        }
+
+        return null;
+    }
+
+    @Override
+    public List<ChapterInfo> getChapters(Fiction fiction) {
         try {
             Document document = Config.fetch(fiction.getFicLink());
             Elements allChapters = document.select("table#chapters tbody tr");
 
-            allChapterLinks = allChapters
-            .stream()
-            .map(chapter -> {
-                String link = chapter.attr("data-url");
+            return allChapters.stream()
+                .map(chapter -> {
+                    String title = chapter.select("a").first().text();
+                    String url = chapter.attr("data-url");
 
-                if (link.startsWith("/")) {
-                    link = "https://www.royalroad.com" + link;
-                }
-                
-                return link;
-            })
-            .collect(Collectors.toList());
-        } catch (IOException e) {
-            log.error("Failed to get chapter links for {}", fiction.getFicLink(), e);
-        }
-        return allChapterLinks;
-    }
+                    if (url.startsWith("/")) {
+                        url = "https://www.royalroad.com" + url;
+                    }
 
-    public String nextChapterLink(Fiction fiction) {
-        String chapterLink = null;
-        try {
-            Document document = Config.fetch(fiction.getFicLink());
-
-            int chapAmount = fiction.getChapAmount();
-            List<String> allChapterLinks = document.select("table#chapters tbody tr")
-                .stream()
-                .map(chapter -> chapter.attr("data-url"))
+                    return new ChapterInfo(title, url);
+                })
                 .collect(Collectors.toList());
 
-            int scrapedChapAmount = allChapterLinks.size();
-
-            if (scrapedChapAmount > chapAmount) {
-                chapterLink = "https://www.royalroad.com" + allChapterLinks.get(chapAmount);
-                log.debug("Next chapter found: {}", chapterLink);
-            } else if (scrapedChapAmount < chapAmount) {
-                chapterLink = "https://www.royalroad.com" + allChapterLinks.get(scrapedChapAmount - 1);
-                log.debug("Fiction may be stubbed. Using latest available: {}", chapterLink);
-            } else {
-                log.debug("No new chapter found.");
-            }
-
         } catch (Exception e) {
-            log.error("Failed to find next chapter link for {}", fiction.getFicLink(), e);
+            log.error("Failed to get chapters for {}", fiction.getFicLink(), e);
+            return List.of();
         }
-        return chapterLink;
     }
 
     @Override
@@ -120,7 +120,7 @@ public class RoyalRoadScraper implements SiteScraper {
                 );
             }
 
-            return chapterBody.html();
+            return ChapterHtmlCleaner.clean(chapterBody.html());
 
         } catch (IOException e) {
             throw new RuntimeException(
@@ -128,22 +128,6 @@ public class RoyalRoadScraper implements SiteScraper {
                 e
             );
         }
-    }
-
-    public List<String> getChapterNames(Fiction fiction) {
-        List<String> allChapterNames = null;
-        try {
-            Document document = Config.fetch(fiction.getFicLink());
-            log.debug("Fetching chapter names for: {}", fiction.getFicLink());
-            Elements allChapters = document.select("table#chapters tbody tr");
-            allChapterNames = allChapters
-                .stream()
-                .map(chapter -> chapter.select("a").first().text())
-                .collect(Collectors.toList());
-        } catch (Exception e) {
-            log.error("Failed to get chapter names for {}", fiction.getFicLink(), e);
-        }
-        return allChapterNames;
     }
 
     public int getWordCount(Fiction fiction) {

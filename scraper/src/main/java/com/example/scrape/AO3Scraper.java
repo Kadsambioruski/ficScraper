@@ -1,14 +1,18 @@
 package com.example.scrape;
 
+import com.example.model.ChapterInfo;
 import com.example.model.Fiction;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 import org.jsoup.nodes.Element;
+
+import com.example.ChapterHtmlCleaner;
 import com.example.Config;
 
 import org.slf4j.Logger;
@@ -48,29 +52,15 @@ public class AO3Scraper implements SiteScraper {
     public String getChapterContent(String chapterUrl) {
         try {
             Document document = Config.fetch(chapterUrl);
-
             Element chapterBody = document.selectFirst("div#chapters");
 
             if (chapterBody == null) {
-                throw new RuntimeException(
-                    "Could not find chapter content: " + chapterUrl
-                );
+                throw new RuntimeException("Could not find chapter content: " + chapterUrl);
             }
 
-            List<String> paragraphs = chapterBody
-                    .select("p")
-                    .stream()
-                    .map(Element::text)
-                    .filter(text -> !text.isBlank())
-                    .collect(Collectors.toList());
-
-            return String.join("\n\n", paragraphs);
-
+            return ChapterHtmlCleaner.clean(chapterBody.html());
         } catch (IOException e) {
-            throw new RuntimeException(
-                "Failed to fetch chapter: " + chapterUrl,
-                e
-            );
+            throw new RuntimeException("Failed to fetch chapter: " + chapterUrl, e);
         }
     }
 
@@ -87,6 +77,7 @@ public class AO3Scraper implements SiteScraper {
                 .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("Failed to get chapter names for {}", fiction.getFicLink(), e);
+            return Collections.emptyList();
         }
         return allChapterNames;
     }
@@ -109,6 +100,7 @@ public class AO3Scraper implements SiteScraper {
             .collect(Collectors.toList());
         } catch (IOException e) {
             log.error("Failed to get chapter links for {}", fiction.getFicLink(), e);
+            return Collections.emptyList();
         }
         return allChapterLinks;
     }
@@ -163,6 +155,12 @@ public class AO3Scraper implements SiteScraper {
 
     private int extractNumber(String text) {
         return Integer.parseInt(text.replace(",", "").trim());
+    }
+
+    @Override
+    public List<ChapterInfo> getChapters(Fiction fiction) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getChapters'");
     }
 
 }

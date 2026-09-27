@@ -5,9 +5,12 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.jsoup.Connection;
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
+import com.example.storage.ChapterJsonHandler;
+import com.example.storage.ChapterStorage;
 import com.example.storage.FicJsonHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -17,14 +20,16 @@ import org.slf4j.LoggerFactory;
 
 public class Config {
     private static final Logger log = LoggerFactory.getLogger(Config.class);
-    private static final String DATA_DIR = "data";
+    private static final ChapterStorage chapterStorage = new ChapterJsonHandler();
+    private static final String DATA_DIR = "../data";
     private static final String FICS_JSON_PATH = "fics.json";
     private static final String FINISHED_FICS_JSON_PATH = "finishedFics.json";
     private static final ObjectMapper instance = new ObjectMapper();
-    private static final Dotenv dotEnv = Dotenv.configure().directory("scraper").load();
+    private static final Dotenv dotEnv = Dotenv.configure().load();
     private static final String FF_COOKIE = dotEnv.get("FF_COOKIE");
     private static final String AO3_COOKIES = dotEnv.get("AO3_COOKIES");
     private static final Connection SESSION;
+
     static {
         Connection session = Jsoup.newSession()
             .timeout(30000)
@@ -34,41 +39,59 @@ public class Config {
             .header("Accept-Encoding", "gzip, deflate")
             .header("Connection", "keep-alive")
             .header("Upgrade-Insecure-Requests", "1");
-        if (FF_COOKIE != null && !FF_COOKIE.isEmpty()) {
+
+        if (FF_COOKIE != null && !FF_COOKIE.isBlank()) {
             session.cookie("cf_clearance", FF_COOKIE);
-            log.info("Loaded cf_clearance cookie");
+            log.info("Loaded FanFiction cf_clearance cookie");
         }
-        if (AO3_COOKIES != null && !AO3_COOKIES.isEmpty()) {
+
+        if (AO3_COOKIES != null && !AO3_COOKIES.isBlank()) {
             for (String cookie : AO3_COOKIES.split(";\\s*")) {
                 String[] parts = cookie.split("=", 2);
+
                 if (parts.length == 2) {
                     session.cookie(parts[0].trim(), parts[1].trim());
                 }
             }
+
             log.info("Loaded AO3 cookies");
         }
+
         SESSION = session;
     }
 
     private static final FicJsonHandler ficJsonHandler = new FicJsonHandler();
-    public static FicJsonHandler ficJsonHandler() { return ficJsonHandler; }
+
+    public static FicJsonHandler ficJsonHandler() {
+        return ficJsonHandler;
+    }
     
-    public static Document fetch(String url) throws IOException {
-        return SESSION.url(url).get();
+    public static ChapterStorage chapterStorage() {
+        return chapterStorage;
     }
 
-    public static ObjectMapper objectMapper(){
+    public static Document fetch(String url) throws IOException {
+        try {
+            return SESSION.url(url).get();
+        } catch (HttpStatusException e) {
+            if (e.getStatusCode() == 403 && url.contains("archive.transformativeworks.org")) {
+                throw new IOException("AO3 rejected the request (403). The configured AO3 session/cookies may have expired.", e);
+            }
+
+            throw e;
+        }
+    }
+
+    public static ObjectMapper objectMapper() {
         return instance;
     }
 
-    public static Path ficsJsonPath(){
+
+    public static Path ficsJsonPath() {
         return Paths.get(DATA_DIR, FICS_JSON_PATH);
     }
 
-    public static Path finishedFicsJsonPath(){
+    public static Path finishedFicsJsonPath() {
         return Paths.get(DATA_DIR, FINISHED_FICS_JSON_PATH);
     }
-
-
-
 }

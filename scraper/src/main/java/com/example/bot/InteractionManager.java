@@ -9,7 +9,9 @@ import java.util.stream.Collectors;
 
 import com.example.Config;
 import com.example.FicScraper;
+import com.example.model.ChapterInfo;
 import com.example.model.Fiction;
+import com.example.scrape.ScraperFactory;
 import com.example.storage.FicJsonHandler;
 import java.util.UUID;
 
@@ -77,7 +79,9 @@ public class InteractionManager {
         
         switch (menuType) {
             case "chapList":
-                items = ficScraper.getAllChapterNames(fic); 
+                items = ScraperFactory.forFic(fic.getSite()).getChapters(fic)
+                .stream().map(ChapterInfo::getTitle)
+                .collect(Collectors.toList()); 
                 break;
             case "fictionList":
             case "finishList":
@@ -243,7 +247,11 @@ public class InteractionManager {
             UUID ficId = UUID.fromString(selectedValue);
 
             Fiction fiction = ficJsonHandler.getFic(ficId);
-            List<String> allChapters = ficScraper.getAllChapterNames(fiction);
+            List<String> allChapters = ScraperFactory
+                .forFic(fiction.getSite()).getChapters(fiction)
+                .stream()
+                .map(ChapterInfo::getTitle)
+                .collect(Collectors.toList());
 
             if (allChapters == null || allChapters.isEmpty()) {
                 return event.reply()
@@ -287,7 +295,11 @@ public class InteractionManager {
             Fiction fiction = ficJsonHandler.getFic(selectedFicId);
             String ficName = fiction.getTitle();
 
-            List<String> allChapters = ficScraper.getAllChapterNames(fiction);
+            List<String> allChapters = ScraperFactory
+                .forFic(fiction.getSite()).getChapters(fiction)
+                .stream()
+                .map(ChapterInfo::getTitle)
+                .collect(Collectors.toList());
 
             if (allChapters == null || allChapters.isEmpty()) {
                 return event.reply()
