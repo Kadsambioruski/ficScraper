@@ -6,6 +6,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -44,7 +45,7 @@ public class RoyalRoadScraper implements SiteScraper {
 
             log.debug("Scraped RoyalRoad fic - Title: {}, Author: {}, Chapters: {}, Words: {}", title, author, chapterAmount, wordCount);
 
-            fic = new Fiction(url, Site.ROYAL_ROAD, 0, title, author, chapterAmount, wordCount, description);
+            fic = new Fiction(url, Site.ROYAL_ROAD, title, author, chapterAmount, wordCount, description);
             return fic;
 
         } catch (Exception e) {
@@ -61,7 +62,15 @@ public class RoyalRoadScraper implements SiteScraper {
 
             allChapterLinks = allChapters
             .stream()
-            .map(chapter -> chapter.attr("data-url"))
+            .map(chapter -> {
+                String link = chapter.attr("data-url");
+
+                if (link.startsWith("/")) {
+                    link = "https://www.royalroad.com" + link;
+                }
+                
+                return link;
+            })
             .collect(Collectors.toList());
         } catch (IOException e) {
             log.error("Failed to get chapter links for {}", fiction.getFicLink(), e);
@@ -96,6 +105,29 @@ public class RoyalRoadScraper implements SiteScraper {
             log.error("Failed to find next chapter link for {}", fiction.getFicLink(), e);
         }
         return chapterLink;
+    }
+
+    @Override
+    public String getChapterContent(String chapterUrl) {
+        try {
+            Document document = Config.fetch(chapterUrl);
+
+            Element chapterBody = document.selectFirst("div.chapter-inner");
+
+            if (chapterBody == null) {
+                throw new RuntimeException(
+                    "Could not find chapter content: " + chapterUrl
+                );
+            }
+
+            return chapterBody.html();
+
+        } catch (IOException e) {
+            throw new RuntimeException(
+                "Failed to fetch chapter: " + chapterUrl,
+                e
+            );
+        }
     }
 
     public List<String> getChapterNames(Fiction fiction) {

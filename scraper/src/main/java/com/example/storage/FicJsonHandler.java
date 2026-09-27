@@ -3,7 +3,7 @@ package com.example.storage;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
-
+import java.util.UUID;
 import com.example.Config;
 import com.example.FicScraper;
 import com.example.model.Fiction;
@@ -32,10 +32,40 @@ public class FicJsonHandler {
         int words = ficScraper.getWordCount(fiction);
         fiction.setWordCount(words);
         jsonSerializer.moveFicToFinished(fiction);
-        resetFicIds();
     }
 
-    public Fiction getFic(int ficId) {
+    public void migrateToUUID() {
+        migrateFile(Config.ficsJsonPath());
+        migrateFile(Config.finishedFicsJsonPath());
+    }
+
+    private void migrateFile(Path path) {
+        try {
+            ObjectMapper mapper = Config.objectMapper();
+
+            FictionList list = mapper.readValue(
+                    path.toFile(),
+                    FictionList.class
+            );
+
+            for (Fiction fiction : list.getFictions()) {
+                if (fiction.getId() == null) {
+                    fiction.setId(UUID.randomUUID());
+                }
+            }
+
+            mapper.writerWithDefaultPrettyPrinter()
+                    .writeValue(path.toFile(), list);
+
+            log.info("Migrated fiction IDs in {}", path);
+
+        } catch (IOException e) {
+            log.error("Failed to migrate {}", path, e);
+        }
+    }
+
+
+    public Fiction getFic(UUID ficId) {
         return jsonDeserializer.getFic(ficId);
     }
 
@@ -74,16 +104,6 @@ public class FicJsonHandler {
         }
     }
 
-    public void resetFicIds() {
-        List<Fiction> fictions = getAllFics();
-        int i = 0;
-        for (Fiction fiction : fictions) {
-            fiction.setFicId(i);
-            i++;
-        }
-        jsonSerializer.saveFicList(fictions);
-    }
-
     public void setFicChapter(Fiction fiction, int chapter) {
         if (fiction != null) {
             jsonSerializer.updateChapAmount(fiction, chapter);
@@ -93,7 +113,7 @@ public class FicJsonHandler {
         }
     }
 
-    public String getFicTitle(int ficId) {
+    public String getFicTitle(UUID ficId) {
         Fiction fiction = getFic(ficId);
         if (fiction != null) {
             return fiction.getTitle();

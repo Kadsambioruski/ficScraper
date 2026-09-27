@@ -1,5 +1,6 @@
 package com.example.scrape;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,12 +35,42 @@ public class FanfictionScraper implements SiteScraper {
 
             log.debug("Scraped FanFiction fic - Title: {}, Author: {}, Chapters: {}, Words: {}", title, author, chapterAmount, wordCount);
 
-            fic = new Fiction(url, Site.FANFICTION, 0, title, author, 0, wordCount, description);
+            fic = new Fiction(url, Site.FANFICTION, title, author, 0, wordCount, description);
             return fic;
         } catch (Exception e) {
             log.error("Failed to scrape info from {}", url, e);
         }
         return null;
+    }
+
+    @Override
+    public String getChapterContent(String chapterUrl) {
+        try {
+            Document document = Config.fetch(chapterUrl);
+
+            Element chapterBody = document.selectFirst("div#storytext");
+
+            if (chapterBody == null) {
+                throw new RuntimeException(
+                    "Could not find chapter content: " + chapterUrl
+                );
+            }
+
+            List<String> paragraphs = chapterBody
+                    .select("p")
+                    .stream()
+                    .map(Element::text)
+                    .filter(text -> !text.isBlank())
+                    .collect(Collectors.toList());
+
+            return String.join("\n\n", paragraphs);
+
+        } catch (IOException e) {
+            throw new RuntimeException(
+                "Failed to fetch chapter: " + chapterUrl,
+                e
+            );
+        }
     }
 
     public List<String> getChapterNames(Fiction fiction) {

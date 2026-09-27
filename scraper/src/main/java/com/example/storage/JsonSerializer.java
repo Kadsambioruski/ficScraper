@@ -68,7 +68,7 @@ public class JsonSerializer {
                 ? objectMapper.readValue(finishedFile, FictionList.class)
                 : new FictionList();
 
-            Fiction fictionToMove = readingList.getFiction(fiction.getFicID());
+            Fiction fictionToMove = readingList.getFiction(fiction.getId());
             if (fictionToMove != null) {
                 readingList.removeFiction(fictionToMove);
 
@@ -78,9 +78,9 @@ public class JsonSerializer {
                 objectWriter.writeValue(readingFile, readingList);
                 objectWriter.writeValue(finishedFile, finishedList);
 
-                log.info("Moved fiction to finished: {} ID: {}", fiction.getTitle(), fiction.getFicID());
+                log.info("Moved fiction to finished: {} ID: {}", fiction.getTitle(), fiction.getId());
             } else {
-                log.warn("Fiction not found in reading list: {} ID: {}", fiction.getTitle(), fiction.getFicID());
+                log.warn("Fiction not found in reading list: {} ID: {}", fiction.getTitle(), fiction.getId());
             }
         } catch (IOException e) {
             log.error("Failed to move fic to finished", e);
@@ -93,7 +93,7 @@ public class JsonSerializer {
             FictionList readingList = objectMapper.readValue(readingFile, FictionList.class);
 
             for (Fiction fiction : readingList.getFictions()) {
-                if (fiction.getFicID() == updatedFic.getFicID()) {
+                if (fiction.getId().equals(updatedFic.getId())) {
                     fiction.setChapAmount(newChapAmount);
                     break;
                 }

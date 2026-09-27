@@ -36,12 +36,42 @@ public class AO3Scraper implements SiteScraper {
 
             log.debug("Scraped AO3 fic - Title: {}, Author: {}, Chapters: {}, Words: {}", title, author, chapterAmount, wordCount);
 
-            fic = new Fiction(url, Site.AO3, 0, title, author, chapterAmount, wordCount, description);
+            fic = new Fiction(url, Site.AO3, title, author, chapterAmount, wordCount, description);
             return fic;
         } catch (Exception e) {
             log.error("Failed to scrape info from {}", url, e);
         }
         return null;
+    }
+    
+    @Override
+    public String getChapterContent(String chapterUrl) {
+        try {
+            Document document = Config.fetch(chapterUrl);
+
+            Element chapterBody = document.selectFirst("div#chapters");
+
+            if (chapterBody == null) {
+                throw new RuntimeException(
+                    "Could not find chapter content: " + chapterUrl
+                );
+            }
+
+            List<String> paragraphs = chapterBody
+                    .select("p")
+                    .stream()
+                    .map(Element::text)
+                    .filter(text -> !text.isBlank())
+                    .collect(Collectors.toList());
+
+            return String.join("\n\n", paragraphs);
+
+        } catch (IOException e) {
+            throw new RuntimeException(
+                "Failed to fetch chapter: " + chapterUrl,
+                e
+            );
+        }
     }
 
     public List<String> getChapterNames(Fiction fiction) {

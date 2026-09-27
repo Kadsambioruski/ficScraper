@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import com.example.Config;
 import com.example.model.Fiction;
@@ -22,10 +23,10 @@ public class JsonDeserializer {
         this.jsonPath = Config.ficsJsonPath();
     }
 
-    public Fiction getFic(int ficID) {
+    public Fiction getFic(UUID ficID) {
         List<Fiction> allFics = getAllFics();
         for (Fiction fiction : allFics) {
-            if (fiction.getFicID() == ficID) {
+            if (fiction.getId().equals(ficID)) {
                 return fiction;
             }
         }

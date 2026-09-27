@@ -1,5 +1,6 @@
 package com.example.bot;
 
+import java.util.UUID;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -96,8 +97,8 @@ public class FicBot {
                 "Select the fiction with a new chapter that you have read:",
                 "fictionList",
                 fic -> fic.getTitle(),
-                fic -> String.valueOf(fic.getFicID()),
-                0
+                fic -> fic.getId().toString(),
+                null
             );
         });
     }
@@ -131,8 +132,8 @@ public class FicBot {
             "Select the fiction that you have finished:",
             "finishList",
             fic -> fic.getTitle(),
-            fic -> String.valueOf(fic.getFicID()),
-            0
+            fic -> fic.getId().toString(),
+            null
             )
         );
     }
@@ -203,7 +204,7 @@ public class FicBot {
         LocalDateTime nextTime = LocalDateTime.now().withMinute(0).withSecond(0).withNano(0);
         LocalDateTime startTime = LocalDateTime.now();
         log.info("Loop has started!");
-        Map<Integer, Integer> lastSeenChapters = new HashMap<>();
+        Map<UUID, Integer> lastSeenChapters = new HashMap<>();
         String message;
 
         while (runLoop) {
@@ -238,9 +239,9 @@ public class FicBot {
                         sendMessage(gateWay, message).subscribe();
                     }
                     if (ficScraper.checkUpdatedChap(fiction, currentChapCount)) {
-                        Integer lastSeen = lastSeenChapters.get(fiction.getFicID());
+                        Integer lastSeen = lastSeenChapters.get(fiction.getId());
                         if (lastSeen == null || currentChapCount > lastSeen) {
-                            lastSeenChapters.put(fiction.getFicID(), currentChapCount);
+                            lastSeenChapters.put(fiction.getId(), currentChapCount);
 
                             message = String.format("New chapter found! New chapter found in %s is: %d\nLink: %s",
                                     fiction.getTitle(),

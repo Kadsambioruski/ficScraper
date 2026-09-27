@@ -9,13 +9,13 @@ import com.example.model.Fiction;
 import com.example.scrape.ScraperFactory;
 import com.example.scrape.Site;
 import com.example.scrape.SiteScraper;
-
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class FicScraper {
     private static final Logger log = LoggerFactory.getLogger(FicScraper.class);
-    private static final Set<Integer> updatedFics = ConcurrentHashMap.newKeySet();
+    private static final Set<UUID> updatedFics = ConcurrentHashMap.newKeySet();
 
     public Fiction ficInformation(String ficUrl) {
         Site site = Site.fromUrl(ficUrl);
@@ -24,13 +24,12 @@ public class FicScraper {
         if (fic == null) {
             throw new RuntimeException("Failed to scrape story: " + ficUrl);
         }
-        fic.setFicId(Config.ficJsonHandler().getAllFics().size() + 1);
         return fic;
     }
 
     public boolean checkUpdatedChap(Fiction fiction, int currentChapCount){
         if (fiction.getChapAmount() < currentChapCount) {
-            updatedFics.add(fiction.getFicID());
+            updatedFics.add(fiction.getId());
             return true;
         }
         return false;
@@ -48,7 +47,7 @@ public class FicScraper {
             .collect(Collectors.toList());
     }
 
-    public static void clearFicUpdate(int ficId) {
+    public static void clearFicUpdate(UUID ficId) {
         updatedFics.remove(ficId);
     }
 

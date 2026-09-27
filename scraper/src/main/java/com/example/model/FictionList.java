@@ -2,6 +2,7 @@ package com.example.model;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class FictionList {
     private List<Fiction> fictions;
@@ -14,9 +15,9 @@ public class FictionList {
         return fictions;
     }
 
-    public Fiction getFiction(int ficId) {
+    public Fiction getFiction(UUID id) {
         for (Fiction fiction : fictions) {
-            if (fiction.getFicID() == ficId) {
+            if (fiction.getId().equals(id)) {
                 return fiction;
             }
         }

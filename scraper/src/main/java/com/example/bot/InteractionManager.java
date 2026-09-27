@@ -11,6 +11,7 @@ import com.example.Config;
 import com.example.FicScraper;
 import com.example.model.Fiction;
 import com.example.storage.FicJsonHandler;
+import java.util.UUID;
 
 import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
@@ -48,7 +49,7 @@ public class InteractionManager {
             .subscribe();
     }
 
-    public static ActionRow createNavigationButtons(String menuType, int currentPage, int totalPages, int ficId) {
+    public static ActionRow createNavigationButtons(String menuType, int currentPage, int totalPages, UUID ficId) {
         boolean isFirstPage = currentPage == 0;
         boolean isLastPage = currentPage == totalPages - 1;
         
@@ -70,7 +71,7 @@ public class InteractionManager {
         String menuType = parts[0];
         String action = parts[1];  // first_page, prev_page, etc.
         int currentPage = Integer.parseInt(parts[2]);
-        int ficId = Integer.parseInt(parts[3]);
+        UUID ficId = UUID.fromString(parts[3]);
         Fiction fic = ficJsonHandler.getFic(ficId);
         List<?> items = Collections.emptyList();
         
@@ -137,7 +138,7 @@ public class InteractionManager {
                 newPage,
                 pageSize,
                 fiction -> ((Fiction) fiction).getTitle(),
-                fiction -> Integer.toString(((Fiction) fiction).getFicID())
+                fiction -> ((Fiction) fiction).getId().toString()
             );
 
             selectRow = ActionRow.of(selectMenu);
@@ -186,7 +187,7 @@ public class InteractionManager {
     }
 
     public static <T> MessageCreateSpec createPaginatedMenu(
-        String header, String menuId, List<T> items, int page, int pageSize, java.util.function.Function<T, String> labelMapper, java.util.function.Function<T, String> valueMapper, int ficId) {
+        String header, String menuId, List<T> items, int page, int pageSize, java.util.function.Function<T, String> labelMapper, java.util.function.Function<T, String> valueMapper, UUID ficId) {
 
         int totalPages = totalPages(items.size(), pageSize);
         SelectMenu selectMenu = createPaginatedSelectMenu(
@@ -209,7 +210,7 @@ public class InteractionManager {
     }
 
     public static <T> MessageEditSpec editPaginatedMenu(
-        String header, String menuId, List<T> items, int page, int pageSize, java.util.function.Function<T, String> labelMapper, java.util.function.Function<T, String> valueMapper, int ficId) {
+        String header, String menuId, List<T> items, int page, int pageSize, java.util.function.Function<T, String> labelMapper, java.util.function.Function<T, String> valueMapper, UUID ficId) {
 
         int totalPages = totalPages(items.size(), pageSize);
         SelectMenu selectMenu = createPaginatedSelectMenu(
@@ -239,7 +240,7 @@ public class InteractionManager {
         case "fictionList":
         {
             String selectedValue = event.getValues().get(0);
-            int ficId = Integer.parseInt(selectedValue);
+            UUID ficId = UUID.fromString(selectedValue);
 
             Fiction fiction = ficJsonHandler.getFic(ficId);
             List<String> allChapters = ficScraper.getAllChapterNames(fiction);
@@ -280,7 +281,7 @@ public class InteractionManager {
             String selectedValue = event.getValues().get(0);
 
             String[] parts = selectedValue.split(":");
-            int selectedFicId = Integer.parseInt(parts[0]);
+            UUID selectedFicId = UUID.fromString(parts[0]);
             int chapterIndex = Integer.parseInt(parts[1]);
 
             Fiction fiction = ficJsonHandler.getFic(selectedFicId);
@@ -327,7 +328,7 @@ public class InteractionManager {
             log.debug("Finish fic case triggered");
 
             String selectedValue = event.getValues().get(0);
-            int ficId = Integer.parseInt(selectedValue);
+            UUID ficId = UUID.fromString(selectedValue);
 
             Fiction finishedFiction = ficJsonHandler.getFic(ficId);
 
@@ -357,7 +358,7 @@ public class InteractionManager {
         String menuId,
         java.util.function.Function<T, String> labelMapper,
         java.util.function.Function<T, String> valueMapper,
-        int ficId) {
+        UUID ficId) {
 
         int maxPageSize = 25;
         
@@ -400,7 +401,7 @@ public class InteractionManager {
         String menuId,
         java.util.function.Function<T, String> labelMapper,
         java.util.function.Function<T, String> valueMapper,
-        int ficId) {
+        UUID ficId) {
 
         Snowflake channelSnowflake = Snowflake.of(channelId);
         int maxPageSize = 25;
