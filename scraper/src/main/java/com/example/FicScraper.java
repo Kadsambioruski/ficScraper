@@ -56,10 +56,77 @@ public class FicScraper {
         }
     }
 
-    public void scrapeMissingChapters(Fiction fiction) {
+    public void updateFiction(Fiction fiction) {
         SiteScraper scraper = ScraperFactory.forFic(fiction.getSite());
+
+        int currentChapCount = scraper.getChapterCount(fiction);
+
+        if (currentChapCount < 0) {
+            log.warn(
+                "Could not get chapter count for {}",
+                fiction.getTitle()
+            );
+            return;
+        }
+
+        int storedChapCount =
+            Config.chapterStorage().getForFiction(fiction.getId()).size();
+
+        log.info(
+            "{}: site={}, stored={}, recorded={}",
+            fiction.getTitle(),
+            currentChapCount,
+            storedChapCount,
+            fiction.getChapAmount()
+        );
+
+        if (currentChapCount == fiction.getChapAmount()
+                && storedChapCount >= currentChapCount) {
+            log.debug(
+                "No new or missing chapters for {}",
+                fiction.getTitle()
+            );
+            return;
+        }
+
+        if (currentChapCount < fiction.getChapAmount()) {
+            log.warn(
+                "Chapter count for {} decreased from {} to {}",
+                fiction.getTitle(),
+                fiction.getChapAmount(),
+                currentChapCount
+            );
+        }
+
         List<ChapterInfo> chapters = scraper.getChapters(fiction);
+
+        if (chapters == null || chapters.isEmpty()) {
+            log.warn(
+                "Could not retrieve chapters for {}",
+                fiction.getTitle()
+            );
+            return;
+        }
+
+        log.info(
+            "{}: retrieved {} chapter entries, stored {}",
+            fiction.getTitle(),
+            chapters.size(),
+            storedChapCount
+        );
+
+        scrapeMissingChapters(fiction, chapters);
+    }
+
+
+    public void scrapeMissingChapters(Fiction fiction, List<ChapterInfo> chapters) {
         List<Chapter> storedChapters = Config.chapterStorage().getForFiction(fiction.getId());
+
+        int currentChapCount = chapters.size();
+
+        int updatedChapAmount = Math.max(fiction.getChapAmount(), currentChapCount);
+        fiction.setChapAmount(updatedChapAmount);
+        Config.ficJsonHandler().updateChapAmount(fiction, currentChapCount);
 
         Set<String> storedNames = storedChapters.stream()
             .map(Chapter::getTitle)

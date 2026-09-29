@@ -10,5 +10,6 @@ public interface SiteScraper {
     String nextChapterLink(Fiction fiction);
     int getWordCount(Fiction fiction);
     String getChapterContent(String chapterUrl);
+    int getChapterCount(Fiction fiction);
     List<ChapterInfo> getChapters(Fiction fiction);
 }

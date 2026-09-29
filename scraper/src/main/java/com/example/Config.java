@@ -1,8 +1,11 @@
 package com.example;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
@@ -29,6 +32,9 @@ public class Config {
     private static final String FF_COOKIE = dotEnv.get("FF_COOKIE");
     private static final String AO3_COOKIES = dotEnv.get("AO3_COOKIES");
     private static final Connection SESSION;
+    private static final Map<String, Long> LAST_REQUEST_TIME = new ConcurrentHashMap<>();
+    private static final long FANFICTION_DELAY_MS = 5000;
+    private static final long DEFAULT_DELAY_MS = 2000;
 
     static {
         Connection session = Jsoup.newSession()
@@ -71,14 +77,48 @@ public class Config {
     }
 
     public static Document fetch(String url) throws IOException {
+        waitForRateLimit(url);
+
         try {
-            return SESSION.url(url).get();
+            return SESSION.newRequest().url(url).get();
         } catch (HttpStatusException e) {
             if (e.getStatusCode() == 403 && url.contains("archive.transformativeworks.org")) {
                 throw new IOException("AO3 rejected the request (403). The configured AO3 session/cookies may have expired.", e);
             }
 
             throw e;
+        }
+    }
+
+    private static void waitForRateLimit(String url) throws IOException {
+        String host;
+
+        try {
+            host = URI.create(url).getHost();
+        } catch (IllegalArgumentException e) {
+            throw new IOException("Invalid URL: " + url, e);
+        }
+
+        long delay = host != null && host.contains("fanfiction.net")
+            ? FANFICTION_DELAY_MS
+            : DEFAULT_DELAY_MS;
+
+        synchronized (LAST_REQUEST_TIME) {
+            long now = System.currentTimeMillis();
+            long lastRequest = LAST_REQUEST_TIME.getOrDefault(host, 0L);
+            long wait = delay - (now - lastRequest);
+
+            if (wait > 0) {
+                log.info("Rate limiting {} for {} ms", host, wait);
+                try {
+                    Thread.sleep(wait);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted while rate limiting requests", e);
+                }
+            }
+
+            LAST_REQUEST_TIME.put(host, System.currentTimeMillis());
         }
     }
 

@@ -43,4 +43,18 @@ public class JsonDeserializer {
         }
     }
 
+    public List<Fiction> getFinishedFics() {
+    try {
+        Path finishedPath = Config.finishedFicsJsonPath();
+        FictionList fictionList = objectMapper.readValue(
+            finishedPath.toFile(),
+            FictionList.class
+        );
+        return fictionList.getFictions();
+    } catch (IOException e) {
+        log.error("Failed to read finished fics from JSON", e);
+        return new ArrayList<>();
+    }
+}
+
 }

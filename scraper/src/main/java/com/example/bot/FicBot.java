@@ -14,8 +14,9 @@ import org.slf4j.LoggerFactory;
 import com.example.Config;
 import com.example.FicScraper;
 import com.example.model.Fiction;
+import com.example.scrape.ScraperFactory;
 import com.example.storage.FicJsonHandler;
-
+import com.example.model.ChapterInfo;
 import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClient;
 import discord4j.core.GatewayDiscordClient;
@@ -32,7 +33,7 @@ import reactor.core.publisher.Mono;
 
 public class FicBot {
     private static final Logger log = LoggerFactory.getLogger(FicBot.class);
-    private static final Dotenv dotEnv = Dotenv.configure().directory("scraper").load();
+    private static final Dotenv dotEnv = Dotenv.configure().load();
     private final String token;
     private static final String DISCORD_SERVER_ID = dotEnv.get("DISCORD_SERVER_ID");
     private static final String DISCORD_CHANNEL_ID = dotEnv.get("DISCORD_CHANNEL_ID");
@@ -191,9 +192,7 @@ public class FicBot {
     public static void putFicInJson(String newLinkToFic) {
         log.info("Adding new fic: {}", newLinkToFic);
         FicScraper ficScraper = new FicScraper();
-        Fiction newFic = ficScraper.ficInformation(newLinkToFic);
-
-        ficJsonHandler.addFic(newFic);
+        Fiction newFic = ficScraper.addFiction(newLinkToFic);
 
         log.info("Fic added to JSON file: {}", newFic);
     }
@@ -225,17 +224,16 @@ public class FicBot {
             List<Fiction> allFictions = ficJsonHandler.getAllFics();
             for (Fiction fiction : allFictions) {
                 try {
-                    List<String> chapterNames = ficScraper.getAllChapterNames(fiction);
-
-                    if (chapterNames == null || chapterNames.isEmpty()) {
+                    List<ChapterInfo> chapters = ScraperFactory.forFic(fiction.getSite()).getChapters(fiction);
+                    
+                    if (chapters == null || chapters.isEmpty()) {
                         log.warn("Skipping {}: could not retrieve chapters.", fiction.getTitle());
                         continue;
                     }
-                    int currentChapCount = chapterNames.size();
+                    int currentChapCount = chapters.size();
 
                     if (ficScraper.checkIfStubbed(fiction, currentChapCount)) {
                         message = String.format("Seems like %s has been STUBBED! New latest chapter amount is: %d. Updating fiction to the new latest chapter! Here is the link: %s", fiction.getTitle(), currentChapCount, ficScraper.nextChapFicLink(fiction));
-                        ficJsonHandler.setFicChapter(fiction, currentChapCount);
                         sendMessage(gateWay, message).subscribe();
                     }
                     if (ficScraper.checkUpdatedChap(fiction, currentChapCount)) {
@@ -245,7 +243,7 @@ public class FicBot {
 
                             message = String.format("New chapter found! New chapter found in %s is: %d\nLink: %s",
                                     fiction.getTitle(),
-                                    fiction.getChapAmount() + 1,
+                                    currentChapCount,
                                     ficScraper.nextChapFicLink(fiction));
 
                             sendMessage(gateWay, message).subscribe();

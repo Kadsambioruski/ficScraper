@@ -40,7 +40,7 @@ public class AO3Scraper implements SiteScraper {
 
             log.debug("Scraped AO3 fic - Title: {}, Author: {}, Chapters: {}, Words: {}", title, author, chapterAmount, wordCount);
 
-            fic = new Fiction(url, Site.AO3, title, author, chapterAmount, wordCount, description);
+            fic = new Fiction(url, Site.AO3, title, author, chapterAmount, 0, wordCount, description);
             return fic;
         } catch (Exception e) {
             log.error("Failed to scrape info from {}", url, e);
@@ -48,6 +48,23 @@ public class AO3Scraper implements SiteScraper {
         return null;
     }
     
+
+    public int getChapterCount(Fiction fiction){
+        int chapterCount;
+        try {
+            Document document = Config.fetch(fiction.getFicLink());
+            String chaptersText = document.select("dd.chapters").text();
+            chapterCount = Integer.parseInt(chaptersText.split("/")[0]);
+            
+        } catch (Exception e) {
+            log.error("Failed to get chapter count for {}", fiction.getFicLink(), e);
+            chapterCount = -1;
+            return -1;        }
+    
+        return chapterCount;
+    }
+
+
     @Override
     public String getChapterContent(String chapterUrl) {
         try {

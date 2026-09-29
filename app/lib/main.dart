@@ -1,8 +1,10 @@
 import 'package:app/models/chapter.dart';
-import 'package:app/reader_page.dart';
+import 'package:app/pages/add_fiction_page.dart';
+import 'package:app/pages/finished_fictions_page.dart';
+import 'package:app/pages/reader_page.dart';
 import 'package:app/services/api_service.dart';
 import 'package:flutter/material.dart';
-import 'package:app/models/Fiction.dart';
+import 'package:app/models/fiction.dart';
 
 void main() {
   runApp(const FicScraperApp());
@@ -43,8 +45,57 @@ class _FictionPageState extends State<FictionPage> {
       appBar: AppBar(
         title: Row(
           children: [
-            IconButton(
-              onPressed: () {},
+            PopupMenuButton<String>(
+              onSelected: (value) async {
+                if (value == 'add') {
+                  final Fiction? addedFiction = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddFictionPage(),
+                    ),
+                  );
+
+                  if (addedFiction != null) {
+                    setState(() {
+                      fictions = apiService.getFictions();
+                    });
+                  }
+                } 
+                if (value == 'finished') {
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (context) => const FinishedFictionsPage()
+                   ),
+                  );
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'library',
+                  child: Text('Library'),
+                ),
+                PopupMenuItem(
+                  value: 'finished',
+                  child: Text('Finished Fictions'),
+                ),
+                PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'add',
+                  child: Text('Add Fiction'),
+                ),
+                PopupMenuItem(
+                  value: 'remove',
+                  child: Text('Remove Fiction'),
+                ),
+                PopupMenuItem(
+                  value: 'finish',
+                  child: Text('Mark as Finished'),
+                ),
+                PopupMenuItem(
+                  value: 'refresh',
+                  child: Text('Refresh Fiction'),
+                ),
+              ],
               icon: const Icon(Icons.menu),
             ),
             const Text(
@@ -77,30 +128,70 @@ class _FictionPageState extends State<FictionPage> {
               child: Text('No fictions found.'),
             );
           }
+          return LayoutBuilder(
+            builder: ((context, constraints) {
+            const minCardWidth = 220.0;
+            const spacing = 10.0;
+            final columns = ((constraints.maxWidth + spacing) / (minCardWidth + spacing))
+              .floor()
+              .clamp(1, 20);   
+            return GridView.builder(
+              padding: const EdgeInsets.all(10),
+              itemCount: fictions.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: spacing,
+                mainAxisSpacing: spacing,
+              ),
+              itemBuilder: (context, index) {
+                return FicCard(
+                  fiction: fictions[index],
+                  onTap: () async {
+                    print("Pressed ${fictions[index].title}");
+                    final updatedFiction = await Navigator.push<Fiction>(
+                      context,
+                      MaterialPageRoute(
+                        builder: ((context) => ChapterPage(
+                          fiction: fictions[index]))
+                      )
+                    );
+                    if (updatedFiction != null) {
+                      setState(() {
+                        this.fictions = this.fictions.then((currentFictions) {
+                          return currentFictions.map((fiction) {
+                            return fiction.id == updatedFiction.id 
+                              ? updatedFiction
+                              : fiction;
+                          }).toList();
+                        });
+                      });
+                    }
+                  },
+                  onFinish: () async {
+                    try {
+                      await apiService.finishFiction(fictions[index].id);
+                      setState(() {
+                        this.fictions = apiService.getFictions();
+                      });
+                    } catch (e) {
+                      print(e);
+                    }
+                  },
+                  onRemove: () async {
+                    try {
+                      await apiService.removeFiction(fictions[index].id);
 
-          return GridView.builder(
-            padding: const EdgeInsets.all(10),
-            itemCount: fictions.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
-            itemBuilder: (context, index) {
-              return FicCard(
-                fiction: fictions[index],
-                onTap: () {
-                  print("Pressed ${fictions[index].title}");
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => ChapterPage(
-                      fictionId: fictions[index].id,
-                      ),
-                    ),
-                  );
-                },
+                      setState(() {
+                        this.fictions = apiService.getFictions();
+                      });
+                    } catch (e) {
+                      print(e);
+                    }
+                  },
                 );
-            },
-          );
+              },
+            );
+          }));
         },
       ),
     );
@@ -110,52 +201,159 @@ class _FictionPageState extends State<FictionPage> {
 class FicCard extends StatelessWidget {
   final Fiction fiction;
   final VoidCallback onTap;
+  final VoidCallback? onFinish;
+  final VoidCallback onRemove;
 
   const FicCard({
     required this.fiction,
     required this.onTap,
+    this.onFinish,
+    required this.onRemove,
+
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: 200,
-        padding: const EdgeInsets.all(20),
-        margin: const EdgeInsets.only(right: 10),
-        color: Colors.amber,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(fiction.title),
-            Text(fiction.author),
-            Text(fiction.site),
-            Text('${fiction.chapAmount} chapters'),
-            Text('${fiction.wordCount} words'),
-          ],
+    final unread = fiction.chapAmount - fiction.readerProgress;
+    return LayoutBuilder(
+      builder: ((context, constraints) {
+        final fontSize = constraints.maxWidth * 0.06;      
+      return InkWell(
+        onTap: onTap,
+        child: Container(
+          width: 300,
+          padding: const EdgeInsets.all(20),
+          margin: const EdgeInsets.only(right: 10),
+          color: Colors.amber,
+          child: Stack(
+            children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(fiction.title, 
+                  style: 
+                    TextStyle(
+                      fontSize: fontSize),
+                ),
+                Text(fiction.author,
+                style: 
+                    TextStyle(
+                      fontSize: fontSize),
+                ),
+                Text(fiction.site, 
+                style: 
+                    TextStyle(
+                      fontSize: fontSize),
+                ),
+                Text('${fiction.chapAmount} chapters', 
+                style: 
+                    TextStyle(
+                      fontSize: fontSize),
+                ),
+                Text('${fiction.wordCount} words', 
+                style: 
+                    TextStyle(
+                      fontSize: fontSize),
+                ),
+                Text('${unread} chapter(s)', style: 
+                    TextStyle(
+                      fontSize: fontSize)
+                ),
+              ],
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == "finish") {
+                    onFinish?.call();
+                  } 
+                  if (value == "remove") {
+                    onRemove();
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: "finish",
+                    child: Text("Finish")
+                    ),
+                  PopupMenuItem(
+                    value: "remove",
+                    child: Text("Remove")
+                    ),
+                  ],
+                )
+              )
+            ]
+          )
         ),
-      ),
-    );
+      );
+      }));
   }
 }
-class ChapterPage extends StatelessWidget {
-  final String fictionId;
+
+class ChapterPage extends StatefulWidget {
+  final Fiction fiction;
 
   const ChapterPage({
-    required this.fictionId,
+    required this.fiction,
     super.key
   }); 
 
   @override
+  State<ChapterPage> createState() => _ChapterPageState();
+}
+
+class _ChapterPageState extends State<ChapterPage> {
+  late Fiction fiction;
+  late Future<List<Chapter>> chapters;
+  bool order = false;
+  @override
+  void initState() {
+    super.initState();
+    fiction = widget.fiction;
+  }
+
+  Future<void> refreshFiction() async {
+    final updatedFiction = 
+      await ApiService().getFiction(widget.fiction.id);
+    
+    setState(() {
+      fiction = updatedFiction;
+    });
+  }
+
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          Navigator.pop(context, fiction);
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
-        title: const Text("Chapters"),
+        title: Row(
+          children: [
+            IconButton(
+              onPressed: () {
+                setState(() {
+                  order = !order;
+                });
+              }, 
+              icon: Icon(Icons.sort)
+              ),
+            const Text("Chapters"),
+          ],
+        ),
+        
       ),
       body: FutureBuilder<List<Chapter>>(
-        future: ApiService().getChapters(fictionId),
+        future: chapters = ApiService().getChapters(widget.fiction.id), 
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -177,28 +375,36 @@ class ChapterPage extends StatelessWidget {
             );
           }
 
-          return ListView.builder(
-            itemCount: chapters.length,
-            itemBuilder: (context, index) {
-              final chapter = chapters[index];
+          final displayedChapters = order ? chapters.reversed.toList() : chapters;
 
+          return ListView.builder(
+            itemCount: displayedChapters.length,
+            itemBuilder: (context, index) {
+              final chapter = displayedChapters[index];
+              final isUnread = chapter.isUnread(fiction.readerProgress);  
+              
               return ListTile(
                 title: Text(chapter.title),
                 subtitle: Text("Chapter ${chapter.chapterNumber}"),
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(
+                tileColor: isUnread ? Colors.blueGrey : null,
+                onTap: () async {
+                  final originalIndex = chapters.indexOf(chapter);
+
+                  await Navigator.push(context, MaterialPageRoute(
                     builder: (context) => ReaderPage(
+                      fictionId: widget.fiction.id,
                       chapters: chapters,
-                      currentIndex: index,
+                      currentIndex: originalIndex,
                       )
                     )
                   );
+                  await refreshFiction();
                 },
               );
             },
           );
         },
       ),
-    );
+    )); 
   }
 }

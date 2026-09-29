@@ -6,6 +6,14 @@ class Chapter {
   final String url;
   final String content;
 
+  bool isRead(int readerProgress) {
+    return chapterNumber <= readerProgress;
+  }
+
+  bool isUnread(int readerProgress) {
+    return chapterNumber > readerProgress;
+  }
+
   const Chapter({
     required this.id,
     required this.fictionId,

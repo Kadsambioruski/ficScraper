@@ -14,12 +14,15 @@ import org.slf4j.LoggerFactory;
 
 public class Main {
     private static final Logger log = LoggerFactory.getLogger(Main.class);
-    private static final Dotenv dotEnv = Dotenv.configure().directory("scraper").load();
+    private static final Dotenv dotEnv = Dotenv.configure().load();
     private static final String TOKEN = dotEnv.get("DISCORD_BOT_TOKEN");
     private static final FicBot ficBot = new FicBot(TOKEN);
 
     public static void main(String[] args) {
         checkDataFiles();
+
+        Config.ficJsonHandler().migrateChapAmountToReaderProgress();
+
         log.info("Main started");
         ficBot.start();
     }

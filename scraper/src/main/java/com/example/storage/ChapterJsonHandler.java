@@ -87,11 +87,34 @@ public class ChapterJsonHandler implements ChapterStorage {
     }
 
     private void write(UUID fictionId, List<Chapter> chapters) {
+        Path target = pathFor(fictionId);
+        Path temp = CHAPTERS_DIR.resolve(fictionId + ".json.tmp");
+
         try {
             Config.objectMapper()
                 .writerWithDefaultPrettyPrinter()
-                .writeValue(pathFor(fictionId).toFile(), chapters);
+                .writeValue(temp.toFile(), chapters);
+
+            try {
+                Files.move(
+                    temp,
+                    target,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
+                );
+            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                Files.move(
+                    temp,
+                    target,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
+                );
+            }
         } catch (IOException e) {
+            try {
+                Files.deleteIfExists(temp);
+            } catch (IOException ignored) {
+            }
+
             throw new RuntimeException("Failed to save chapters for fiction: " + fictionId, e);
         }
     }

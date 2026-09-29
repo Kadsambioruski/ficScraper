@@ -5,6 +5,7 @@ class Fiction {
   final String title;
   final String author;
   final int chapAmount;
+  final int readerProgress;
   final int wordCount;
   final String description;
 
@@ -15,6 +16,7 @@ class Fiction {
     required this.title,
     required this.author,
     required this.chapAmount,
+    required this.readerProgress,
     required this.wordCount,
     required this.description,
   });
@@ -27,6 +29,7 @@ class Fiction {
       title: json['title'],
       author: json['author'],
       chapAmount: json['chapAmount'],
+      readerProgress: json['readerProgress'],
       wordCount: json['wordCount'],
       description: json['description'],
     );

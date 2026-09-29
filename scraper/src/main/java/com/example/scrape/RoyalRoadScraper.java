@@ -47,7 +47,7 @@ public class RoyalRoadScraper implements SiteScraper {
 
             log.debug("Scraped RoyalRoad fic - Title: {}, Author: {}, Chapters: {}, Words: {}", title, author, chapterAmount, wordCount);
 
-            fic = new Fiction(url, Site.ROYAL_ROAD, title, author, chapterAmount, wordCount, description);
+            fic = new Fiction(url, Site.ROYAL_ROAD, title, author, chapterAmount, 0, wordCount, description);
             return fic;
 
         } catch (Exception e) {
@@ -81,6 +81,26 @@ public class RoyalRoadScraper implements SiteScraper {
 
         return null;
     }
+
+    public int getChapterCount(Fiction fiction){
+        try {
+            Document document = Config.fetch(fiction.getFicLink());
+            String chapterText = document.select("div.portlet.light > div.portlet-title > div.actions > span").text();
+            
+            if (chapterText.isBlank()) {
+                log.warn("Could not find Royal Road chapter count for {}",
+                    fiction.getFicLink()
+                );
+                return -1;
+            }
+            String firstPart = chapterText.split("\\s+")[0];
+            return Integer.parseInt(firstPart);
+
+        } catch (Exception e) {
+            log.error("Failed to get chapter count for {}", fiction.getFicLink(), e);
+            return -1;        }
+    }
+
 
     @Override
     public List<ChapterInfo> getChapters(Fiction fiction) {

@@ -1,6 +1,7 @@
 package com.example.model;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import com.example.scrape.Site;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.UUID;
 
@@ -12,6 +13,7 @@ public class Fiction {
     private String title;
     private String author;
     private int chapAmount;
+    private int readerProgress;
     private int wordCount;
     private String description;
 
@@ -24,6 +26,7 @@ public class Fiction {
             String title,
             String author,
             int chapAmount,
+            int readerProgress,
             int wordCount,
             String description
     ) {
@@ -33,6 +36,7 @@ public class Fiction {
         this.title = title;
         this.author = author;
         this.chapAmount = chapAmount;
+        this.readerProgress = readerProgress;
         this.wordCount = wordCount;
         this.description = description;
     }
@@ -68,19 +72,27 @@ public class Fiction {
         return chapAmount;
     }
 
+    public void setChapAmount(int chapAmount) {
+        this.chapAmount = chapAmount;
+    }
+
+    public int getReaderProgress() {
+        return readerProgress;
+    }
+
+    public void setReaderProgress(int readerProgress) {
+        this.readerProgress = readerProgress;
+    }
+
     public int getWordCount() {
         return wordCount;
     }
 
-    public String getDescription() {
-        return description;
-    }
-
-    public void setChapAmount(int chapter) {
-        this.chapAmount = chapter;
-    }
-
     public void setWordCount(int wordCount) {
         this.wordCount = wordCount;
+    }
+
+    public String getDescription() {
+        return description;
     }
 }
