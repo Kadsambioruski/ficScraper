@@ -150,13 +150,22 @@ class _FictionPageState extends State<FictionPage> {
             );
           }
 
-          final fictions = snapshot.data ?? [];
+          final fictions = (snapshot.data ?? []).where((fiction) => !fiction.finished).toList();
+
 
           if (fictions.isEmpty) {
             return const Center(
               child: Text('No fictions found.'),
             );
           }
+
+          fictions.sort((a, b) {
+                final aUnread = a.chapAmount - a.readerProgress;
+                final bUnread = b.chapAmount - b.readerProgress;
+
+                return bUnread.compareTo(aUnread);
+              });
+
           return LayoutBuilder(
             builder: ((context, constraints) {
             const minCardWidth = 220.0;

@@ -1,3 +1,4 @@
+
 class Fiction {
   final String id;
   final String ficLink;
@@ -8,6 +9,8 @@ class Fiction {
   final int readerProgress;
   final int wordCount;
   final String description;
+  final bool finished;
+
 
   const Fiction({
     required this.id,
@@ -19,6 +22,7 @@ class Fiction {
     required this.readerProgress,
     required this.wordCount,
     required this.description,
+    required this.finished,
   });
 
   factory Fiction.fromJson(Map<String, dynamic> json) {
@@ -32,6 +36,7 @@ class Fiction {
       readerProgress: json['readerProgress'],
       wordCount: json['wordCount'],
       description: json['description'],
+      finished: json['finished'], 
     );
   }
 }

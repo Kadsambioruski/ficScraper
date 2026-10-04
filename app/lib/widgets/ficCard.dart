@@ -34,10 +34,13 @@ class FicCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(fiction.title, 
+                Text(
+                  maxLines: 2,
+                  fiction.title, 
                   style: 
                     TextStyle(
-                      fontSize: fontSize),
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold),
                 ),
                 Text(fiction.author,
                 style: 
@@ -59,9 +62,10 @@ class FicCard extends StatelessWidget {
                     TextStyle(
                       fontSize: fontSize),
                 ),
-                Text('${unread} chapter(s)', style: 
+                Text('${unread} unread chapter(s)', style: 
                     TextStyle(
-                      fontSize: fontSize)
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w600)
                 ),
               ],
             ),

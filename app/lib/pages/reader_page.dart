@@ -23,6 +23,11 @@ class ReaderPage extends StatefulWidget {
 
 class _ReaderPageState extends State<ReaderPage> {
   int currentIndex = 0;
+
+  final ScrollController _scrollController = ScrollController();
+
+  bool reachedChapEnd = false;
+
   Future<void> saveProgress() async {
     final apiService = ApiService();
 
@@ -36,7 +41,37 @@ class _ReaderPageState extends State<ReaderPage> {
   void initState() {
     super.initState();
     currentIndex = widget.currentIndex;
-    saveProgress();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+
+    if (_scrollController.position.maxScrollExtent <= 0) return;
+
+    final position = _scrollController.position;
+    final atEnd = position.pixels >= position.maxScrollExtent - 50;
+    if (atEnd && !reachedChapEnd) {
+      reachedChapEnd = true;
+    
+      final chapterNumber = widget.chapters[currentIndex].chapterNumber;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          "You have reached the end of the chapter!\n" 
+          "Updating read chapter to: $chapterNumber",
+          ))
+      );
+      saveProgress();
+    }
+
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -49,6 +84,7 @@ class _ReaderPageState extends State<ReaderPage> {
         title: Text(chapter.title),
       ),
       body: SingleChildScrollView(
+        controller: _scrollController,
         key: ValueKey(chapter.chapterNumber),
         padding: const EdgeInsets.all(20),
         child: HtmlWidget(chapter.content),
@@ -62,8 +98,13 @@ class _ReaderPageState extends State<ReaderPage> {
             onPressed: hasPrevious ? () {
                     setState(() {
                       currentIndex--;
+                      reachedChapEnd = false;
                     });
-                    saveProgress();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (_scrollController.hasClients) {
+                      _scrollController.jumpTo(0);
+                    }
+                  });
                   }
                 : null,
           child: const Text("Previous"),
@@ -73,12 +114,17 @@ class _ReaderPageState extends State<ReaderPage> {
           onPressed: hasNext ? () {
                   setState(() {
                     currentIndex++;
+                    reachedChapEnd = false;
                   });
-                  saveProgress();
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (_scrollController.hasClients) {
+                      _scrollController.jumpTo(0);
+                    }
+                  });
                 }
               : null,
-           child: const Text("Next"),
-           ),
+            child: Text("Next"),
+            ),
           ],
         ),
       ),
