@@ -41,7 +41,7 @@ public class FictionUpdateScheduler {
             log.info("Starting fiction update");
 
             List<Fiction> fictions =
-                Config.ficJsonHandler().getAllFics();
+                Config.fictionStorage().getAll();
 
             for (Fiction fiction : fictions) {
                 try {

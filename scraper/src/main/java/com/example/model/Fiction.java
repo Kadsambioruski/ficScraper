@@ -7,6 +7,7 @@ import java.util.UUID;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Fiction {
+
     private UUID id;
     private String ficLink;
     private Site site;
@@ -16,6 +17,7 @@ public class Fiction {
     private int readerProgress;
     private int wordCount;
     private String description;
+    private boolean finished;
 
     public Fiction() {
     }
@@ -39,6 +41,7 @@ public class Fiction {
         this.readerProgress = readerProgress;
         this.wordCount = wordCount;
         this.description = description;
+        this.finished = false;
     }
 
     public UUID getId() {
@@ -53,19 +56,36 @@ public class Fiction {
         return ficLink;
     }
 
+    public void setFicLink(String ficLink) {
+        this.ficLink = ficLink;
+    }
+
     public Site getSite() {
         if (site == null && ficLink != null) {
             site = Site.fromUrl(ficLink);
         }
+
         return site;
+    }
+
+    public void setSite(Site site) {
+        this.site = site;
     }
 
     public String getTitle() {
         return title;
     }
 
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
     public String getAuthor() {
         return author;
+    }
+
+    public void setAuthor(String author) {
+        this.author = author;
     }
 
     public int getChapAmount() {
@@ -94,5 +114,17 @@ public class Fiction {
 
     public String getDescription() {
         return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public boolean isFinished() {
+        return finished;
+    }
+
+    public void setFinished(boolean finished) {
+        this.finished = finished;
     }
 }

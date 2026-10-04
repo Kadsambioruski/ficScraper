@@ -4,6 +4,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.example.model.Chapter;
@@ -40,7 +43,7 @@ public class FicScraper {
 
     public Fiction addFiction(String ficUrl) {
         Fiction fiction = ficInformation(ficUrl);
-        Config.ficJsonHandler().addFic(fiction);
+        Config.fictionStorage().save(fiction);
         scrapeAllChapters(fiction);
         
         return fiction;
@@ -50,9 +53,29 @@ public class FicScraper {
         SiteScraper scraper = ScraperFactory.forFic(fiction.getSite());
         List<ChapterInfo> chapters = scraper.getChapters(fiction);
 
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+
         for (int i = 0; i < chapters.size(); i++) {
             ChapterInfo chapter = chapters.get(i);
-            scrapeChapter(fiction, i + 1, chapter.getUrl(), chapter.getTitle());
+            int chapterNumber = i + 1;
+
+            executor.submit(() -> {
+                scrapeChapter(
+                    fiction,
+                    chapterNumber,
+                    chapter.getUrl(),
+                    chapter.getTitle()
+                );
+            });
+        }
+
+        executor.shutdown();
+
+        try {
+            executor.awaitTermination(1, TimeUnit.HOURS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Chapter scraping interrupted", e);
         }
     }
 
@@ -120,34 +143,82 @@ public class FicScraper {
 
 
     public void scrapeMissingChapters(Fiction fiction, List<ChapterInfo> chapters) {
-        List<Chapter> storedChapters = Config.chapterStorage().getForFiction(fiction.getId());
+        List<Chapter> storedChapters =
+            Config.chapterStorage().getForFiction(fiction.getId());
 
-        int currentChapCount = chapters.size();
+        int nextChapterNumber = storedChapters.size() + 1;
 
-        int updatedChapAmount = Math.max(fiction.getChapAmount(), currentChapCount);
-        fiction.setChapAmount(updatedChapAmount);
-        Config.ficJsonHandler().updateChapAmount(fiction, currentChapCount);
+        for (ChapterInfo chapter : chapters) {
+            boolean exists = storedChapters.stream()
+                .anyMatch(stored ->
+                    sameRoyalRoadChapter(stored.getUrl(), chapter.getUrl())
+                    || Objects.equals(stored.getTitle(), chapter.getTitle())
+                );
 
-        Set<String> storedNames = storedChapters.stream()
-            .map(Chapter::getTitle)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toSet());
-
-        for (int i = 0; i < chapters.size(); i++) {
-            ChapterInfo chapter = chapters.get(i);
-
-            if (storedNames.contains(chapter.getTitle())) {
+            if (exists) {
                 continue;
             }
 
             scrapeChapter(
                 fiction,
-                i + 1,
+                nextChapterNumber,
                 chapter.getUrl(),
                 chapter.getTitle()
             );
+
+            nextChapterNumber++;
         }
+
+        int newStoredChapCount =
+            Config.chapterStorage().getForFiction(fiction.getId()).size();
+
+        int updatedChapAmount = Math.max(
+            fiction.getChapAmount(),
+            newStoredChapCount
+        );
+
+        fiction.setChapAmount(updatedChapAmount);
+
+        Config.fictionStorage().setChapterAmount(
+            fiction.getId(),
+            updatedChapAmount
+        );
     }
+
+    private boolean sameRoyalRoadChapter(String storedUrl, String newUrl) {
+        String storedId = extractRoyalRoadChapterId(storedUrl);
+        String newId = extractRoyalRoadChapterId(newUrl);
+
+        return storedId != null
+            && newId != null
+            && storedId.equals(newId);
+    }
+
+    private String extractRoyalRoadChapterId(String url) {
+        if (url == null) {
+            return null;
+        }
+
+        String marker = "/chapter/";
+        int start = url.indexOf(marker);
+
+        if (start == -1) {
+            return null;
+        }
+
+        start += marker.length();
+
+        int end = url.indexOf("/", start);
+
+        if (end == -1) {
+            end = url.length();
+        }
+
+        String chapterId = url.substring(start, end);
+
+        return chapterId.isBlank() ? null : chapterId;
+    }
+
 
     public Chapter scrapeChapter(Fiction fiction, int chapterNumber, String chapterUrl, String chapterTitle) {
         SiteScraper scraper = ScraperFactory.forFic(fiction.getSite());
@@ -159,6 +230,12 @@ public class FicScraper {
             chapterTitle,
             chapterUrl,
             content
+        );
+        log.info(
+            "Saving chapter: number={}, title={}, url={}",
+            chapterNumber,
+            chapterTitle,
+            chapterUrl
         );
 
         Config.chapterStorage().save(chapter);
@@ -173,7 +250,7 @@ public class FicScraper {
 
     public static List<Fiction> getUpdatedFics() {
         return updatedFics.stream()
-            .map(id -> Config.ficJsonHandler().getFic(id))
+            .map(id -> Config.fictionStorage().get(id))
             .filter(fiction -> fiction != null)
             .collect(Collectors.toList());
     }

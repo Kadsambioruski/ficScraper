@@ -13,8 +13,11 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
 import com.example.storage.ChapterJsonHandler;
+import com.example.storage.ChapterPostgresStorage;
 import com.example.storage.ChapterStorage;
-import com.example.storage.FicJsonHandler;
+import com.example.storage.Database;
+import com.example.storage.FictionPostgresStorage;
+import com.example.storage.FictionStorage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.cdimascio.dotenv.Dotenv;
@@ -22,13 +25,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Config {
+    private static final Dotenv dotEnv = Dotenv.configure().load();
     private static final Logger log = LoggerFactory.getLogger(Config.class);
-    private static final ChapterStorage chapterStorage = new ChapterJsonHandler();
+
+    private static final String DB_URL = dotEnv.get("DB_URL");
+    private static final String DB_USER = dotEnv.get("DB_USER");
+    private static final String DB_PASSWORD = dotEnv.get("DB_PASSWORD");
+
+    private static final Database database = new Database(DB_URL, DB_USER, DB_PASSWORD);
+    private static final ChapterStorage chapterStorage = new ChapterPostgresStorage(database);
+    private static final FictionStorage fictionStorage = new FictionPostgresStorage(database);
+
     private static final String DATA_DIR = "../data";
     private static final String FICS_JSON_PATH = "fics.json";
     private static final String FINISHED_FICS_JSON_PATH = "finishedFics.json";
     private static final ObjectMapper instance = new ObjectMapper();
-    private static final Dotenv dotEnv = Dotenv.configure().load();
     private static final String FF_COOKIE = dotEnv.get("FF_COOKIE");
     private static final String AO3_COOKIES = dotEnv.get("AO3_COOKIES");
     private static final Connection SESSION;
@@ -65,15 +76,13 @@ public class Config {
 
         SESSION = session;
     }
-
-    private static final FicJsonHandler ficJsonHandler = new FicJsonHandler();
-
-    public static FicJsonHandler ficJsonHandler() {
-        return ficJsonHandler;
-    }
     
     public static ChapterStorage chapterStorage() {
         return chapterStorage;
+    }
+
+    public static FictionStorage fictionStorage() {
+        return fictionStorage;
     }
 
     public static Document fetch(String url) throws IOException {

@@ -23,12 +23,12 @@ public class FictionController {
 
     @GetMapping
     public List<Fiction> getFictions() {
-        return Config.ficJsonHandler().getAllFics();
+        return Config.fictionStorage().getAll();
     }
 
     @GetMapping("/{fictionId}")
     public Fiction getFiction(@PathVariable("fictionId") UUID fictionId) {
-        Fiction fiction = Config.ficJsonHandler().getFic(fictionId);
+        Fiction fiction = Config.fictionStorage().get(fictionId);
 
         if (fiction == null) {
             throw new RuntimeException("Fiction not found: " + fictionId);
@@ -38,7 +38,7 @@ public class FictionController {
 
     @GetMapping("/finished")
     public List<Fiction> getFinishedFictions() {
-        return Config.ficJsonHandler().getFinishedFics();
+        return Config.fictionStorage().getFinished();
     }
 
     @GetMapping("/{fictionId}/chapters")
@@ -48,7 +48,7 @@ public class FictionController {
     
    @PostMapping("/{fictionId}/update-chapters")
     public void updateChapters(@PathVariable("fictionId") UUID fictionId) {
-        Fiction fiction = Config.ficJsonHandler().getFic(fictionId);
+        Fiction fiction = Config.fictionStorage().get(fictionId);
 
         if (fiction == null) {
             throw new RuntimeException("Fiction not found: " + fictionId);
@@ -66,30 +66,31 @@ public class FictionController {
 
     @PostMapping("/{fictionId}/finish")
     public Fiction finishFiction(@PathVariable("fictionId") UUID fictionId) {
-        Fiction fiction = Config.ficJsonHandler().getFic(fictionId);
+        Fiction fiction = Config.fictionStorage().get(fictionId);
 
         if (fiction == null) {
             throw new RuntimeException("Fiction not found: " + fictionId);
         }
 
-        Config.ficJsonHandler().moveFicToFinished(fiction);
+        Config.fictionStorage().setFinished(fictionId, true);
+        fiction.setFinished(true);
         return fiction;
     }
 
     @PostMapping("/{fictionId}/remove")
     public void removeFiction(@PathVariable("fictionId") UUID fictionId) {
-        Fiction fiction = Config.ficJsonHandler().getFic(fictionId);
+        Fiction fiction = Config.fictionStorage().get(fictionId);
 
         if (fiction == null) {
             throw new RuntimeException("Fiction not found: " + fictionId);
         }
 
-        Config.ficJsonHandler().removeFic(fiction);
+        Config.fictionStorage().delete(fictionId);
     }
 
     @PostMapping("/refresh")
     public void refreshFictions() {
-        List<Fiction> fictions = Config.ficJsonHandler().getAllFics();
+        List<Fiction> fictions = Config.fictionStorage().getAll();
         FicScraper scraper = new FicScraper();
 
         for (Fiction fiction : fictions) {
@@ -102,13 +103,13 @@ public class FictionController {
             @PathVariable("fictionId") UUID fictionId,
             @RequestBody int chapter) {
 
-        Fiction fiction = Config.ficJsonHandler().getFic(fictionId);
+        Fiction fiction = Config.fictionStorage().get(fictionId);
 
         if (fiction == null) {
             throw new RuntimeException("Fiction not found: " + fictionId);
         }
 
-        Config.ficJsonHandler().setFicChapter(fiction, chapter);
+        Config.fictionStorage().setReaderProgress(fictionId, chapter);
 
         fiction.setReaderProgress(chapter);
         return fiction;
