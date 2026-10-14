@@ -23,7 +23,7 @@ class ReaderPage extends StatefulWidget {
 
 class _ReaderPageState extends State<ReaderPage> {
   int currentIndex = 0;
-
+  double _fontSize = 16.0;
   final ScrollController _scrollController = ScrollController();
 
   bool reachedChapEnd = false;
@@ -42,6 +42,20 @@ class _ReaderPageState extends State<ReaderPage> {
     super.initState();
     currentIndex = widget.currentIndex;
     _scrollController.addListener(_onScroll);
+  }
+
+  void _increaseFontSize() {
+    setState(() {
+      _fontSize += 2.0;
+    });
+  }
+
+  void _decreaseFontSize() {
+    setState(() {
+      if (_fontSize > 8.0) {
+        _fontSize -= 2.0;
+      }
+    });
   }
 
   void _onScroll() {
@@ -82,12 +96,27 @@ class _ReaderPageState extends State<ReaderPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(chapter.title),
+        actions: [
+          IconButton(
+            onPressed: _increaseFontSize, 
+            icon: const Text("A+")
+          ),
+          IconButton(
+            onPressed: _decreaseFontSize, 
+            icon: const Text("A-")
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         controller: _scrollController,
         key: ValueKey(chapter.chapterNumber),
         padding: const EdgeInsets.all(20),
-        child: HtmlWidget(chapter.content),
+        child: HtmlWidget(
+          chapter.content,
+          textStyle: TextStyle(
+            fontSize: _fontSize
+            ),
+          ),
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(12),
