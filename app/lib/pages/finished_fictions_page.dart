@@ -1,7 +1,6 @@
-import 'package:app/main.dart';
 import 'package:app/widgets/ficCard.dart';
 import 'package:flutter/material.dart';
-
+import 'package:intl/intl.dart';
 import '../models/fiction.dart';
 import '../services/api_service.dart';
 
@@ -47,18 +46,15 @@ class _FinishedFictionsPageState extends State<FinishedFictionsPage> {
         final fictions = snapshot.data ?? [];
 
         final numOfFictions = fictions.length;
-        final totalWordCount = fictions.fold<int>(
-          0,
-          (sum, fiction) => sum + fiction.wordCount,
-        );
-
+        final totalWordCount = fictions.fold<int>(0, (sum, fiction) => sum + fiction.wordCount);
+        final formatedWordCount = NumberFormat.decimalPattern('sv_SE').format(totalWordCount);
         return Scaffold(
           appBar: AppBar(
             title: Row(
               spacing: 10,
               children: [
                 Text('Finished Fictions: $numOfFictions'),
-                Text('Total Word Count: $totalWordCount'),
+                Text('Total Word Count: $formatedWordCount'),
               ],
             ),
           ),

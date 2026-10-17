@@ -13,7 +13,6 @@ import org.jsoup.select.Elements;
 import org.jsoup.nodes.Element;
 
 import com.example.ChapterHtmlCleaner;
-import com.example.Config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +26,7 @@ public class AO3Scraper implements SiteScraper {
         Fiction fic = null;
         try {
             String workUrl = normalizeWorkUrl(url);
-            Document document = Config.fetch(workUrl);
+            Document document = AO3BrowserFetch.fetch(workUrl);
 
             String title = document.select("h2.title heading").text();
             String author = document.select("a[rel=\"author\"]").text();
@@ -52,14 +51,14 @@ public class AO3Scraper implements SiteScraper {
     public int getChapterCount(Fiction fiction){
         int chapterCount;
         try {
-            Document document = Config.fetch(fiction.getFicLink());
+            Document document = AO3BrowserFetch.fetch(fiction.getFicLink());
             String chaptersText = document.select("dd.chapters").text();
             chapterCount = Integer.parseInt(chaptersText.split("/")[0]);
             
         } catch (Exception e) {
             log.error("Failed to get chapter count for {}", fiction.getFicLink(), e);
-            chapterCount = -1;
-            return -1;        }
+            chapterCount = -1;        
+        }
     
         return chapterCount;
     }
@@ -68,23 +67,31 @@ public class AO3Scraper implements SiteScraper {
     @Override
     public String getChapterContent(String chapterUrl) {
         try {
-            Document document = Config.fetch(chapterUrl);
-            Element chapterBody = document.selectFirst("div#chapters");
+            Document document = AO3BrowserFetch.fetch(chapterUrl);
 
-            if (chapterBody == null) {
-                throw new RuntimeException("Could not find chapter content: " + chapterUrl);
+            Element chapterBody =
+                document.selectFirst("#chapters .chapter .userstuff");
+
+            if (chapterBody == null || chapterBody.text().isBlank()) {
+                throw new IOException(
+                    "Chapter content missing or page did not load: "
+                        + chapterUrl
+                );
             }
 
             return ChapterHtmlCleaner.clean(chapterBody.html());
+
         } catch (IOException e) {
-            throw new RuntimeException("Failed to fetch chapter: " + chapterUrl, e);
+            throw new RuntimeException(
+                "Failed to fetch AO3 chapter: " + chapterUrl, e
+            );
         }
     }
 
     public List<String> getChapterNames(Fiction fiction) {
         List<String> allChapterNames = null;
         try {
-            Document document = Config.fetch(fiction.getFicLink());
+            Document document = AO3BrowserFetch.fetch(fiction.getFicLink());
             log.debug("Fetching chapter names for: {}", fiction.getFicLink());
             Elements allChapters = document.select("select#selected_id option");
 
@@ -102,7 +109,7 @@ public class AO3Scraper implements SiteScraper {
     public List<String> getChapterLinks(Fiction fiction) {
         List<String> allChapterLinks = null;
         try {
-            Document document = Config.fetch(fiction.getFicLink());
+            Document document = AO3BrowserFetch.fetch(fiction.getFicLink());
             Elements allChapters = document.select("select#selected_id option");
 
             String ficLink = fiction.getFicLink();
@@ -148,7 +155,7 @@ public class AO3Scraper implements SiteScraper {
 
     public int getWordCount(Fiction fiction) {
         try {
-            Document document = Config.fetch(fiction.getFicLink());
+            Document document = AO3BrowserFetch.fetch(fiction.getFicLink());
             int wordCount = extractNumber(document.select("dd.words").text());
 
             log.debug("Word count for '{}': {}", fiction.getTitle(), wordCount);
@@ -176,8 +183,28 @@ public class AO3Scraper implements SiteScraper {
 
     @Override
     public List<ChapterInfo> getChapters(Fiction fiction) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getChapters'");
+        try {
+            Document document = AO3BrowserFetch.fetch(fiction.getFicLink());
+            Elements allChapters = document.select("select#selected_id option");
+
+            String ficLink = normalizeWorkUrl(fiction.getFicLink());
+            String workId = ficLink.split("/works/")[1].split("/")[0];
+            String baseUrl = ficLink.split("/works/")[0] + "/works/" + workId;
+
+            return allChapters.stream()
+                .map(option -> {
+                    String value = option.attr("value");
+                    String title = option.text();
+                    String url = baseUrl + "/chapters/" + value;
+
+                    return new ChapterInfo(title, url);
+                })
+                .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("Failed to get chapters for {}", fiction.getFicLink(), e);
+            return List.of();
+        }
     }
 
 }

@@ -12,7 +12,6 @@ import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
-import com.example.storage.ChapterJsonHandler;
 import com.example.storage.ChapterPostgresStorage;
 import com.example.storage.ChapterStorage;
 import com.example.storage.Database;
@@ -71,7 +70,18 @@ public class Config {
                 }
             }
 
-            log.info("Loaded AO3 cookies");
+            String cookieNames = AO3_COOKIES.lines()
+            .findFirst()
+            .orElse(AO3_COOKIES)
+            .replaceFirst("(?i)^Cookie:\\s*", "")
+            .replaceAll("\\s+", "");
+
+            String names = java.util.Arrays.stream(cookieNames.split(";"))
+                .map(cookie -> cookie.split("=", 2)[0].trim())
+                .filter(name -> !name.isEmpty())
+                .collect(java.util.stream.Collectors.joining(", "));
+
+            log.info("AO3 cookie names loaded: {}", names);
         }
 
         SESSION = session;
@@ -98,6 +108,27 @@ public class Config {
             throw e;
         }
     }
+
+
+    public static void diagnoseAO3(String url) throws IOException {
+        waitForRateLimit(url);
+
+        Connection.Response response = SESSION.newRequest()
+            .url(url)
+            .followRedirects(true)
+            .ignoreHttpErrors(true)
+            .execute();
+
+        log.info("AO3 HTTP status: {}", response.statusCode());
+        log.info("AO3 content type: {}", response.contentType());
+        log.info("AO3 server: {}", response.header("Server"));
+        log.info("AO3 CF-Ray: {}", response.header("cf-ray"));
+
+        String body = response.body();
+        log.info("AO3 response body:\n{}",
+            body.substring(0, Math.min(body.length(), 2000)));
+    }
+
 
     private static void waitForRateLimit(String url) throws IOException {
         String host;

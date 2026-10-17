@@ -1,7 +1,6 @@
 import 'package:app/models/fiction.dart';
 import 'package:flutter/material.dart';
 
-import '../models/fiction.dart';
 import '../services/api_service.dart';
 
 class AddFictionPage extends StatefulWidget {
