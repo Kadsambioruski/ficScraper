@@ -95,7 +95,7 @@ class _ChapterPageState extends State<ChapterPage> {
               
               return ListTile(
                 title: Text(chapter.title),
-                subtitle: Text("Chapter ${chapter.chapterNumber}"),
+                subtitle: Text("Chapter ${chapter.chapterNumber} - ${chapter.wordCount} words"),
                 tileColor: isUnread ? Colors.blueGrey : null,
                 onTap: () async {
                   final originalIndex = chapters.indexOf(chapter);

@@ -2,10 +2,16 @@ package com.example.model;
 
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class Chapter {
     private UUID id;
     private UUID fictionId;
     private int chapterNumber;
+
+    @JsonProperty("wordCount")
+    private int wordCount;
+    
     private String title;
     private String url;
     private String content;
@@ -13,10 +19,11 @@ public class Chapter {
     public Chapter() {
     }
 
-    public Chapter(UUID fictionId, int chapterNumber, String title, String url, String content) {
+    public Chapter(UUID fictionId, int chapterNumber, int wordCount, String title, String url, String content) {
         this.id = UUID.randomUUID();
         this.fictionId = fictionId;
         this.chapterNumber = chapterNumber;
+        this.wordCount = wordCount;
         this.title = title;
         this.url = url;
         this.content = content;
@@ -44,6 +51,14 @@ public class Chapter {
 
     public void setChapterNumber(int chapterNumber) {
         this.chapterNumber = chapterNumber;
+    }
+
+    public int getChapterWordCount() {
+        return wordCount;
+    }
+
+    public void setChapterWordCount(int wordCount) {
+        this.wordCount = wordCount;
     }
 
     public String getTitle() {

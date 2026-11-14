@@ -38,7 +38,8 @@ public void save(Chapter chapter) {
         UPDATE chapters
         SET title = ?,
             url = ?,
-            content = ?
+            content = ?,
+            word_count = ?
         WHERE id = ?
         """;
 
@@ -49,9 +50,10 @@ public void save(Chapter chapter) {
             chapter_number,
             title,
             url,
-            content
+            content,
+            word_count
         )
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """;
 
     try (Connection connection = database.getConnection()) {
@@ -98,7 +100,8 @@ public void save(Chapter chapter) {
                 statement.setString(1, chapter.getTitle());
                 statement.setString(2, chapter.getUrl());
                 statement.setString(3, chapter.getContent());
-                statement.setObject(4, existingId);
+                statement.setInt(4, chapter.getChapterWordCount());
+                statement.setObject(5, existingId);
 
                 statement.executeUpdate();
             }
@@ -116,6 +119,7 @@ public void save(Chapter chapter) {
             statement.setString(4, chapter.getTitle());
             statement.setString(5, chapter.getUrl());
             statement.setString(6, chapter.getContent());
+            statement.setInt(7, chapter.getChapterWordCount());
 
             statement.executeUpdate();
         }
@@ -166,7 +170,8 @@ private String extractRoyalRoadChapterId(String url) {
                 chapter_number,
                 title,
                 url,
-                content
+                content,
+                word_count
             FROM chapters
             WHERE id = ?
             """;
@@ -202,7 +207,8 @@ private String extractRoyalRoadChapterId(String url) {
                 chapter_number,
                 title,
                 url,
-                content
+                content,
+                word_count
             FROM chapters
             WHERE fiction_id = ?
             ORDER BY chapter_number
@@ -259,27 +265,31 @@ private String extractRoyalRoadChapterId(String url) {
         Chapter chapter = new Chapter();
 
         chapter.setId(
-                result.getObject("id", UUID.class)
+            result.getObject("id", UUID.class)
         );
 
         chapter.setFictionId(
-                result.getObject("fiction_id", UUID.class)
+            result.getObject("fiction_id", UUID.class)
         );
 
         chapter.setChapterNumber(
-                result.getInt("chapter_number")
+            result.getInt("chapter_number")
+        );
+
+        chapter.setChapterWordCount(
+            result.getInt("word_count")
         );
 
         chapter.setTitle(
-                result.getString("title")
+            result.getString("title")
         );
 
         chapter.setUrl(
-                result.getString("url")
+            result.getString("url")
         );
 
         chapter.setContent(
-                result.getString("content")
+            result.getString("content")
         );
 
         return chapter;

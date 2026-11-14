@@ -12,4 +12,19 @@ public class ChapterHtmlCleaner {
 
         return document.body().html();
     }
+
+
+    public static int countWords(String html) {
+        String text = Jsoup.parseBodyFragment(html)
+                        .body()
+                        .text()
+                        .trim();
+
+        if (text.isEmpty()) {
+            return 0;
+        }
+
+        return text.split("\\s+").length;
+    }
+
 }

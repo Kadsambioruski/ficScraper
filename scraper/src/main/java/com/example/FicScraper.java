@@ -83,7 +83,7 @@ public class FicScraper {
         SiteScraper scraper = ScraperFactory.forFic(fiction.getSite());
 
         int currentChapCount = scraper.getChapterCount(fiction);
-
+        
         if (currentChapCount < 0) {
             log.warn(
                 "Could not get chapter count for {}",
@@ -91,7 +91,7 @@ public class FicScraper {
             );
             return;
         }
-
+        
         int storedChapCount =
             Config.chapterStorage().getForFiction(fiction.getId()).size();
 
@@ -158,7 +158,7 @@ public class FicScraper {
             if (exists) {
                 continue;
             }
-
+            log.info("Chapter scraped: {}{} for {}", chapter.getTitle(), chapter.getUrl(), fiction.getTitle());
             scrapeChapter(
                 fiction,
                 nextChapterNumber,
@@ -223,17 +223,21 @@ public class FicScraper {
     public Chapter scrapeChapter(Fiction fiction, int chapterNumber, String chapterUrl, String chapterTitle) {
         SiteScraper scraper = ScraperFactory.forFic(fiction.getSite());
         String content = scraper.getChapterContent(chapterUrl);
+        String cleanContent = ChapterHtmlCleaner.clean(content);
+        int chapWordCount = ChapterHtmlCleaner.countWords(cleanContent);
 
         Chapter chapter = new Chapter(
             fiction.getId(),
             chapterNumber,
+            chapWordCount,
             chapterTitle,
             chapterUrl,
             content
         );
         log.info(
-            "Saving chapter: number={}, title={}, url={}",
+            "Saving chapter: number={}, wordCount={}, title={}, url={}",
             chapterNumber,
+            chapWordCount,
             chapterTitle,
             chapterUrl
         );
@@ -241,6 +245,31 @@ public class FicScraper {
         Config.chapterStorage().save(chapter);
         return chapter;
     }
+
+
+    public void backfillChapterWordCounts(Fiction fiction) {
+        List<Chapter> chapters =
+            Config.chapterStorage().getForFiction(fiction.getId());
+
+        for (Chapter chapter : chapters) {
+            String cleanContent =
+                ChapterHtmlCleaner.clean(chapter.getContent());
+
+            int wordCount =
+                ChapterHtmlCleaner.countWords(cleanContent);
+
+            chapter.setChapterWordCount(wordCount);
+
+            Config.chapterStorage().save(chapter);
+
+            log.info(
+                "Updated word count: chapter={}, words={}",
+                chapter.getChapterNumber(),
+                wordCount
+            );
+        }
+    }
+
 
 
     public boolean checkIfStubbed(Fiction fiction, int currentChapCount) {
