@@ -1,5 +1,5 @@
 # ficScraper
-[![License]\([https://img.shields.io/badge/license-PolyForm_NC-orange?style=flat-square)\](LICENSE](https://img.shields.io/badge/license-PolyForm_NC-orange?style=flat-square\)]\(LICENSE))
+[![License](https://img.shields.io/badge/license-PolyForm_NC-orange?style=flat-square)](LICENSE)
 
 A web fiction reader and tracker built with Java, Spring Boot, Flutter, and PostgreSQL. It scrapes supported fiction websites, stores chapters locally, tracks reading progress, and provides an interface for reading and managing your fiction library.
 
