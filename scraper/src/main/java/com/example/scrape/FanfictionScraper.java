@@ -26,7 +26,7 @@ public class FanfictionScraper implements SiteScraper {
     public Fiction scrapeInfo(String url) {
         Fiction fic = null;
         try {
-            Document document = Config.fetch(url);
+            Document document = BrowserFetch.fetch(url);
 
             String title = document.select("b.xcontrast_txt").text();
             String author = document.select("#profile_top a.xcontrast_txt").first().text();
@@ -48,7 +48,7 @@ public class FanfictionScraper implements SiteScraper {
     @Override
     public String getChapterContent(String chapterUrl) {
         try {
-            Document document = Config.fetch(chapterUrl);
+            Document document = BrowserFetch.fetch(chapterUrl);
             Element chapterBody = document.selectFirst("div#storytext");
 
             if (chapterBody == null) {
@@ -64,7 +64,7 @@ public class FanfictionScraper implements SiteScraper {
     @Override
     public int getChapterCount(Fiction fiction) {
         try {
-            Document document = Config.fetch(fiction.getFicLink());
+            Document document = BrowserFetch.fetch(fiction.getFicLink());
 
             String metadata = document
                 .select(".xgray.xcontrast_txt")
@@ -94,7 +94,7 @@ public class FanfictionScraper implements SiteScraper {
     @Override
     public List<ChapterInfo> getChapters(Fiction fiction) {
         try {
-            Document document = Config.fetch(fiction.getFicLink());
+            Document document = BrowserFetch.fetch(fiction.getFicLink());
             Elements allChapters = document.select("select#chap_select").first().select("option");
 
             String ficLink = fiction.getFicLink();
@@ -145,7 +145,7 @@ public class FanfictionScraper implements SiteScraper {
 
     public int getWordCount(Fiction fiction) {
         try {
-            Document document = Config.fetch(fiction.getFicLink());
+            Document document = BrowserFetch.fetch(fiction.getFicLink());
             String metadata = document.select(".xgray.xcontrast_txt").text();
 
             int wordCount = extractNumber(metadata, "Words:");

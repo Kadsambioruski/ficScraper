@@ -26,7 +26,7 @@ public class AO3Scraper implements SiteScraper {
         Fiction fic = null;
         try {
             String workUrl = normalizeWorkUrl(url);
-            Document document = AO3BrowserFetch.fetch(workUrl);
+            Document document = BrowserFetch.fetch(workUrl);
 
             String title = document.select("h2.title heading").text();
             String author = document.select("a[rel=\"author\"]").text();
@@ -50,13 +50,14 @@ public class AO3Scraper implements SiteScraper {
 
     public int getChapterCount(Fiction fiction){
         int chapterCount;
+        String chaptersText = "";
         try {
-            Document document = AO3BrowserFetch.fetch(fiction.getFicLink());
-            String chaptersText = document.select("dd.chapters").text();
+            Document document = BrowserFetch.fetch(fiction.getFicLink());
+            chaptersText = document.select("dd.chapters").text();
             chapterCount = Integer.parseInt(chaptersText.split("/")[0]);
             
         } catch (Exception e) {
-            log.error("Failed to get chapter count for {}", fiction.getFicLink(), e);
+            log.error("Failed to get chapter count for {}, contents retrieved: {}", fiction.getFicLink(), chaptersText, e);
             chapterCount = -1;        
         }
     
@@ -67,7 +68,7 @@ public class AO3Scraper implements SiteScraper {
     @Override
     public String getChapterContent(String chapterUrl) {
         try {
-            Document document = AO3BrowserFetch.fetch(chapterUrl);
+            Document document = BrowserFetch.fetch(chapterUrl);
 
             Element chapterBody =
                 document.selectFirst("#chapters .chapter .userstuff");
@@ -91,7 +92,7 @@ public class AO3Scraper implements SiteScraper {
     public List<String> getChapterNames(Fiction fiction) {
         List<String> allChapterNames = null;
         try {
-            Document document = AO3BrowserFetch.fetch(fiction.getFicLink());
+            Document document = BrowserFetch.fetch(fiction.getFicLink());
             log.debug("Fetching chapter names for: {}", fiction.getFicLink());
             Elements allChapters = document.select("select#selected_id option");
 
@@ -109,7 +110,7 @@ public class AO3Scraper implements SiteScraper {
     public List<String> getChapterLinks(Fiction fiction) {
         List<String> allChapterLinks = null;
         try {
-            Document document = AO3BrowserFetch.fetch(fiction.getFicLink());
+            Document document = BrowserFetch.fetch(fiction.getFicLink());
             Elements allChapters = document.select("select#selected_id option");
 
             String ficLink = fiction.getFicLink();
@@ -155,7 +156,7 @@ public class AO3Scraper implements SiteScraper {
 
     public int getWordCount(Fiction fiction) {
         try {
-            Document document = AO3BrowserFetch.fetch(fiction.getFicLink());
+            Document document = BrowserFetch.fetch(fiction.getFicLink());
             int wordCount = extractNumber(document.select("dd.words").text());
 
             log.debug("Word count for '{}': {}", fiction.getTitle(), wordCount);
@@ -184,7 +185,7 @@ public class AO3Scraper implements SiteScraper {
     @Override
     public List<ChapterInfo> getChapters(Fiction fiction) {
         try {
-            Document document = AO3BrowserFetch.fetch(fiction.getFicLink());
+            Document document = BrowserFetch.fetch(fiction.getFicLink());
             Elements allChapters = document.select("select#selected_id option");
 
             String ficLink = normalizeWorkUrl(fiction.getFicLink());

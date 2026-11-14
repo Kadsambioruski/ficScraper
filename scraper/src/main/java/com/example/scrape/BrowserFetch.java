@@ -12,11 +12,11 @@ import java.nio.charset.StandardCharsets;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
-public final class AO3BrowserFetch {
+public final class BrowserFetch {
 
     private static final HttpClient CLIENT = HttpClient.newHttpClient();
 
-    private AO3BrowserFetch() {
+    private BrowserFetch() {
     }
 
     public static Document fetch(String url) throws IOException {
@@ -40,19 +40,19 @@ public final class AO3BrowserFetch {
 
             if (response.statusCode() != 200) {
                 throw new IOException(
-                    "Nodriver service returned HTTP "
+                    "Browser service returned HTTP "
                     + response.statusCode()
                     + ": "
                     + response.body()
                 );
-            }
+            } 
 
             return Jsoup.parse(response.body(), url);
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException(
-                "Interrupted while fetching AO3 page",
+                "Interrupted while fetching page: " + url,
                 e
             );
         }

@@ -26,7 +26,7 @@ public class RoyalRoadScraper implements SiteScraper {
     public Fiction scrapeInfo(String url) {
         Fiction fic = null;
         try {
-            Document document = Config.fetch(url);
+            Document document = BrowserFetch.fetch(url);
 
             Elements titleAndAuthorContainer = document.select(".col");
 
@@ -83,9 +83,12 @@ public class RoyalRoadScraper implements SiteScraper {
 
     public int getChapterCount(Fiction fiction){
         try {
-            Document document = Config.fetch(fiction.getFicLink());
-            String chapterText = document.select("div.portlet.light > div.portlet-title > div.actions > span").text();
-            
+            Document document = BrowserFetch.fetch(fiction.getFicLink());
+            if (document.title().contains("Making sure you are not a bot")) {
+                log.warn("Royal Road returned an Anubis challenge for {}", fiction.getFicLink());
+            }
+
+            String chapterText = document.select("span.label.label-default.pull-right").text();
             if (chapterText.isBlank()) {
                 log.warn("Could not find Royal Road chapter count for {}",
                     fiction.getFicLink()
@@ -105,6 +108,7 @@ public class RoyalRoadScraper implements SiteScraper {
     public List<ChapterInfo> getChapters(Fiction fiction) {
         try {
             Document document = Config.fetch(fiction.getFicLink());
+            
             Elements allChapters = document.select("table#chapters tbody tr");
 
             return allChapters.stream()
@@ -129,7 +133,7 @@ public class RoyalRoadScraper implements SiteScraper {
     @Override
     public String getChapterContent(String chapterUrl) {
         try {
-            Document document = Config.fetch(chapterUrl);
+            Document document = BrowserFetch.fetch(chapterUrl);
 
             Element chapterBody = document.selectFirst("div.chapter-inner");
 
@@ -152,7 +156,7 @@ public class RoyalRoadScraper implements SiteScraper {
     public int getWordCount(Fiction fiction) {
         int wordCount = 0;
         try {
-            Document document = Config.fetch(fiction.getFicLink());
+            Document document = BrowserFetch.fetch(fiction.getFicLink());
             wordCount = extractWordCount(document);
 
             log.debug("Word count for '{}': {}", fiction.getTitle(), wordCount);

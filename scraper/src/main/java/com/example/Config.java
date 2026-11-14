@@ -40,7 +40,6 @@ public class Config {
     private static final String FINISHED_FICS_JSON_PATH = "finishedFics.json";
     private static final ObjectMapper instance = new ObjectMapper();
     private static final String FF_COOKIE = dotEnv.get("FF_COOKIE");
-    private static final String AO3_COOKIES = dotEnv.get("AO3_COOKIES");
     private static final Connection SESSION;
     private static final Map<String, Long> LAST_REQUEST_TIME = new ConcurrentHashMap<>();
     private static final long FANFICTION_DELAY_MS = 5000;
@@ -59,29 +58,6 @@ public class Config {
         if (FF_COOKIE != null && !FF_COOKIE.isBlank()) {
             session.cookie("cf_clearance", FF_COOKIE);
             log.info("Loaded FanFiction cf_clearance cookie");
-        }
-
-        if (AO3_COOKIES != null && !AO3_COOKIES.isBlank()) {
-            for (String cookie : AO3_COOKIES.split(";\\s*")) {
-                String[] parts = cookie.split("=", 2);
-
-                if (parts.length == 2) {
-                    session.cookie(parts[0].trim(), parts[1].trim());
-                }
-            }
-
-            String cookieNames = AO3_COOKIES.lines()
-            .findFirst()
-            .orElse(AO3_COOKIES)
-            .replaceFirst("(?i)^Cookie:\\s*", "")
-            .replaceAll("\\s+", "");
-
-            String names = java.util.Arrays.stream(cookieNames.split(";"))
-                .map(cookie -> cookie.split("=", 2)[0].trim())
-                .filter(name -> !name.isEmpty())
-                .collect(java.util.stream.Collectors.joining(", "));
-
-            log.info("AO3 cookie names loaded: {}", names);
         }
 
         SESSION = session;
