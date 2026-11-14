@@ -1,14 +1,22 @@
 package com.example;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.jsoup.Connection;
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
-import com.example.storage.FicJsonHandler;
+import com.example.storage.ChapterPostgresStorage;
+import com.example.storage.ChapterStorage;
+import com.example.storage.Database;
+import com.example.storage.FictionPostgresStorage;
+import com.example.storage.FictionStorage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.cdimascio.dotenv.Dotenv;
@@ -16,15 +24,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Config {
+    private static final Dotenv dotEnv = Dotenv.configure().load();
     private static final Logger log = LoggerFactory.getLogger(Config.class);
-    private static final String DATA_DIR = "data";
+
+    private static final String DB_URL = dotEnv.get("DB_URL");
+    private static final String DB_USER = dotEnv.get("DB_USER");
+    private static final String DB_PASSWORD = dotEnv.get("DB_PASSWORD");
+
+    private static final Database database = new Database(DB_URL, DB_USER, DB_PASSWORD);
+    private static final ChapterStorage chapterStorage = new ChapterPostgresStorage(database);
+    private static final FictionStorage fictionStorage = new FictionPostgresStorage(database);
+
+    private static final String DATA_DIR = "../data";
     private static final String FICS_JSON_PATH = "fics.json";
     private static final String FINISHED_FICS_JSON_PATH = "finishedFics.json";
     private static final ObjectMapper instance = new ObjectMapper();
-    private static final Dotenv dotEnv = Dotenv.configure().directory("scraper").load();
     private static final String FF_COOKIE = dotEnv.get("FF_COOKIE");
-    private static final String AO3_COOKIES = dotEnv.get("AO3_COOKIES");
     private static final Connection SESSION;
+    private static final Map<String, Long> LAST_REQUEST_TIME = new ConcurrentHashMap<>();
+    private static final long FANFICTION_DELAY_MS = 5000;
+    private static final long DEFAULT_DELAY_MS = 2000;
+
     static {
         Connection session = Jsoup.newSession()
             .timeout(30000)
@@ -34,41 +54,100 @@ public class Config {
             .header("Accept-Encoding", "gzip, deflate")
             .header("Connection", "keep-alive")
             .header("Upgrade-Insecure-Requests", "1");
-        if (FF_COOKIE != null && !FF_COOKIE.isEmpty()) {
+
+        if (FF_COOKIE != null && !FF_COOKIE.isBlank()) {
             session.cookie("cf_clearance", FF_COOKIE);
-            log.info("Loaded cf_clearance cookie");
+            log.info("Loaded FanFiction cf_clearance cookie");
         }
-        if (AO3_COOKIES != null && !AO3_COOKIES.isEmpty()) {
-            for (String cookie : AO3_COOKIES.split(";\\s*")) {
-                String[] parts = cookie.split("=", 2);
-                if (parts.length == 2) {
-                    session.cookie(parts[0].trim(), parts[1].trim());
-                }
-            }
-            log.info("Loaded AO3 cookies");
-        }
+
         SESSION = session;
     }
-
-    private static final FicJsonHandler ficJsonHandler = new FicJsonHandler();
-    public static FicJsonHandler ficJsonHandler() { return ficJsonHandler; }
     
-    public static Document fetch(String url) throws IOException {
-        return SESSION.url(url).get();
+    public static ChapterStorage chapterStorage() {
+        return chapterStorage;
     }
 
-    public static ObjectMapper objectMapper(){
+    public static FictionStorage fictionStorage() {
+        return fictionStorage;
+    }
+
+    public static Document fetch(String url) throws IOException {
+        waitForRateLimit(url);
+
+        try {
+            return SESSION.newRequest().url(url).get();
+        } catch (HttpStatusException e) {
+            if (e.getStatusCode() == 403 && url.contains("archive.transformativeworks.org")) {
+                throw new IOException("AO3 rejected the request (403). The configured AO3 session/cookies may have expired.", e);
+            }
+
+            throw e;
+        }
+    }
+
+
+    public static void diagnoseAO3(String url) throws IOException {
+        waitForRateLimit(url);
+
+        Connection.Response response = SESSION.newRequest()
+            .url(url)
+            .followRedirects(true)
+            .ignoreHttpErrors(true)
+            .execute();
+
+        log.info("AO3 HTTP status: {}", response.statusCode());
+        log.info("AO3 content type: {}", response.contentType());
+        log.info("AO3 server: {}", response.header("Server"));
+        log.info("AO3 CF-Ray: {}", response.header("cf-ray"));
+
+        String body = response.body();
+        log.info("AO3 response body:\n{}",
+            body.substring(0, Math.min(body.length(), 2000)));
+    }
+
+
+    private static void waitForRateLimit(String url) throws IOException {
+        String host;
+
+        try {
+            host = URI.create(url).getHost();
+        } catch (IllegalArgumentException e) {
+            throw new IOException("Invalid URL: " + url, e);
+        }
+
+        long delay = host != null && host.contains("fanfiction.net")
+            ? FANFICTION_DELAY_MS
+            : DEFAULT_DELAY_MS;
+
+        synchronized (LAST_REQUEST_TIME) {
+            long now = System.currentTimeMillis();
+            long lastRequest = LAST_REQUEST_TIME.getOrDefault(host, 0L);
+            long wait = delay - (now - lastRequest);
+
+            if (wait > 0) {
+                log.info("Rate limiting {} for {} ms", host, wait);
+                try {
+                    Thread.sleep(wait);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted while rate limiting requests", e);
+                }
+            }
+
+            LAST_REQUEST_TIME.put(host, System.currentTimeMillis());
+        }
+    }
+
+    public static ObjectMapper objectMapper() {
         return instance;
     }
 
-    public static Path ficsJsonPath(){
+
+    public static Path ficsJsonPath() {
         return Paths.get(DATA_DIR, FICS_JSON_PATH);
     }
 
-    public static Path finishedFicsJsonPath(){
+    public static Path finishedFicsJsonPath() {
         return Paths.get(DATA_DIR, FINISHED_FICS_JSON_PATH);
     }
-
-
-
 }

@@ -1,5 +1,6 @@
 package com.example.scrape;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -7,7 +8,9 @@ import java.util.stream.Collectors;
 
 import org.jsoup.nodes.Document;
 
+import com.example.model.ChapterInfo;
 import com.example.model.Fiction;
+import com.example.ChapterHtmlCleaner;
 import com.example.Config;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -23,7 +26,7 @@ public class FanfictionScraper implements SiteScraper {
     public Fiction scrapeInfo(String url) {
         Fiction fic = null;
         try {
-            Document document = Config.fetch(url);
+            Document document = BrowserFetch.fetch(url);
 
             String title = document.select("b.xcontrast_txt").text();
             String author = document.select("#profile_top a.xcontrast_txt").first().text();
@@ -34,7 +37,7 @@ public class FanfictionScraper implements SiteScraper {
 
             log.debug("Scraped FanFiction fic - Title: {}, Author: {}, Chapters: {}, Words: {}", title, author, chapterAmount, wordCount);
 
-            fic = new Fiction(url, Site.FANFICTION, 0, title, author, 0, wordCount, description);
+            fic = new Fiction(url, Site.FANFICTION, title, author, chapterAmount, 0, wordCount, description);
             return fic;
         } catch (Exception e) {
             log.error("Failed to scrape info from {}", url, e);
@@ -42,86 +45,107 @@ public class FanfictionScraper implements SiteScraper {
         return null;
     }
 
-    public List<String> getChapterNames(Fiction fiction) {
-        List<String> allChapterNames = null;
+    @Override
+    public String getChapterContent(String chapterUrl) {
         try {
-            Document document = Config.fetch(fiction.getFicLink());
-            Elements allChapters = document.select("select#chap_select").first().select("option");
-            allChapterNames = allChapters
-                .stream()
-                .map(Element::text)
-                .collect(Collectors.toList());
+            Document document = BrowserFetch.fetch(chapterUrl);
+            Element chapterBody = document.selectFirst("div#storytext");
 
-            String metadata = document.select(".xgray.xcontrast_txt").text();
-            int chapterAmount = extractNumber(metadata, "Chapters:");
-
-            while (allChapterNames.size() < chapterAmount) {
-                allChapterNames.add("Chapter: " + (allChapterNames.size() + 1));
+            if (chapterBody == null) {
+                throw new RuntimeException("Could not find chapter content: " + chapterUrl);
             }
 
-        } catch (Exception e) {
-            log.error("Failed to get chapter names for {}", fiction.getFicLink(), e);
+            return ChapterHtmlCleaner.clean(chapterBody.html());
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to fetch chapter: " + chapterUrl, e);
         }
-        return allChapterNames;
     }
 
-    public List<String> getChapterLinks(Fiction fiction) {
-        List<String> allChapterLinks = null;
+    @Override
+    public int getChapterCount(Fiction fiction) {
         try {
-            Document document = Config.fetch(fiction.getFicLink());
+            Document document = BrowserFetch.fetch(fiction.getFicLink());
+
+            String metadata = document
+                .select(".xgray.xcontrast_txt")
+                .text();
+
+            int chapterCount = extractNumber(metadata, "Chapters:");
+
+            if (chapterCount <= 0) {
+                log.warn(
+                    "Could not determine FanFiction chapter count for {}",
+                    fiction.getFicLink()
+                );
+                return -1;
+            }
+
+            return chapterCount;
+        } catch (Exception e) {
+            log.error(
+                "Failed to get chapter count for {}",
+                fiction.getFicLink(),
+                e
+            );
+            return -1;
+        }
+    }
+
+    @Override
+    public List<ChapterInfo> getChapters(Fiction fiction) {
+        try {
+            Document document = BrowserFetch.fetch(fiction.getFicLink());
             Elements allChapters = document.select("select#chap_select").first().select("option");
 
             String ficLink = fiction.getFicLink();
             String storyId = ficLink.split("/s/")[1].split("/")[0];
             String storyTitle = ficLink.split("/s/")[1].split("/", 3)[2];
 
-            allChapterLinks = allChapters.stream()
-                .map(option -> option.attr("value"))
-                .filter(value -> value != null && !value.isEmpty())
-                .map(value -> "https://www.fanfiction.net/s/" + storyId + "/" + value + "/" + storyTitle)
+            List<ChapterInfo> chapters = allChapters.stream()
+                .map(option -> {
+                    String value = option.attr("value");
+                    String title = option.text();
+                    String url = "https://www.fanfiction.net/s/" + storyId + "/" + value + "/" + storyTitle;
+                    return new ChapterInfo(title, url);
+                })
                 .collect(Collectors.toList());
 
-            String metadata = document.select(".xgray.xcontrast_txt").text();
-            int chapterAmount = extractNumber(metadata, "Chapters:");
-
-            for (int i = allChapterLinks.size() + 1; i <= chapterAmount; i++) {
-                allChapterLinks.add("https://www.fanfiction.net/s/" + storyId + "/" + i + "/" + storyTitle);
-            }
-
+            return chapters;
         } catch (Exception e) {
-            log.error("Failed to get chapter links for {}", fiction.getFicLink(), e);
+            log.error("Failed to get chapters for {}", fiction.getFicLink(), e);
+            return List.of();
         }
-        return allChapterLinks;
     }
 
     public String nextChapterLink(Fiction fiction) {
-        String chapterLink = null;
         try {
-            List<String> allChapterLinks = getChapterLinks(fiction);
-
+            List<ChapterInfo> chapters = getChapters(fiction);
             int storedChapAmount = fiction.getChapAmount();
-
-            int scrapedChapAmount = allChapterLinks.size();
+            int scrapedChapAmount = chapters.size();
 
             if (scrapedChapAmount > storedChapAmount) {
-                chapterLink = allChapterLinks.get(storedChapAmount);
+                String chapterLink = chapters.get(storedChapAmount).getUrl();
                 log.debug("Next chapter found: {}", chapterLink);
-            } else if (scrapedChapAmount < storedChapAmount) {
-                chapterLink = allChapterLinks.get(scrapedChapAmount - 1);
-                log.warn("Fiction may be stubbed. Using latest available: {}", chapterLink);
-            } else {
-                log.debug("No new chapter found.");
+                return chapterLink;
             }
 
+            if (scrapedChapAmount < storedChapAmount) {
+                String chapterLink = chapters.get(scrapedChapAmount - 1).getUrl();
+                log.warn("Fiction may be stubbed. Using latest available: {}", chapterLink);
+                return chapterLink;
+            }
+
+            log.debug("No new chapter found.");
         } catch (Exception e) {
             log.error("Failed to find next chapter link for {}", fiction.getFicLink(), e);
         }
-        return chapterLink;
+
+        return null;
     }
 
     public int getWordCount(Fiction fiction) {
         try {
-            Document document = Config.fetch(fiction.getFicLink());
+            Document document = BrowserFetch.fetch(fiction.getFicLink());
             String metadata = document.select(".xgray.xcontrast_txt").text();
 
             int wordCount = extractNumber(metadata, "Words:");
